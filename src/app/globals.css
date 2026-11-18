@@ -1,49 +1,100 @@
+@import 'katex/dist/katex.min.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Thế giới thị giác: tờ giấy kiểm tra. Mực bút bi xanh cho thao tác, bút đỏ của giáo viên cho chấm và lỗi.
+   Màu ở dạng "R G B" để Tailwind ghép độ trong suốt. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ground: 244 246 250;
+  --surface: 255 255 255;
+  --sunken: 236 240 247;
+  --ink: 22 30 52;
+  --muted: 88 98 122;
+  --line: 219 225 236;
+  --brand: 37 64 196;
+  --brand-strong: 25 44 150;
+  --brand-soft: 230 235 252;
+  --on-brand: 255 255 255;
+  --pen: 200 40 36;
+  --pen-soft: 253 233 231;
+  --ok: 18 120 86;
+  --ok-soft: 225 244 236;
+  --warn: 150 92 0;
+  --warn-soft: 255 242 214;
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-html {
-  height: 100%;
-}
-
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
-
-body {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  html {
+    --ground: 15 19 30;
+    --surface: 23 28 42;
+    --sunken: 30 36 54;
+    --ink: 229 233 243;
+    --muted: 155 165 188;
+    --line: 45 53 75;
+    --brand: 138 160 255;
+    --brand-strong: 172 189 255;
+    --brand-soft: 34 44 82;
+    --on-brand: 12 18 44;
+    --pen: 255 132 122;
+    --pen-soft: 62 28 30;
+    --ok: 96 211 160;
+    --ok-soft: 20 52 40;
+    --warn: 242 194 91;
+    --warn-soft: 56 43 16;
     color-scheme: dark;
   }
+}
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    @apply bg-ground text-ink antialiased;
+    font-feature-settings: 'tnum' 0;
+  }
+  ::selection { background: rgb(var(--brand) / 0.22); }
+  :focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: 2px; border-radius: 6px; }
+  input, textarea, select { caret-color: rgb(var(--brand)); }
+  a { text-underline-offset: 3px; }
+  h1, h2, h3 { text-wrap: balance; }
+}
+
+@layer components {
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* Nội dung câu hỏi đã render (KaTeX + ảnh) */
+  .rich { overflow-wrap: anywhere; line-height: 1.65; }
+  .rich .katex { font-size: 1.08em; }
+  .rich .katex-display { margin: 0.25em 0; }
+  .rich .q-img { display: block; max-width: min(100%, 520px); height: auto; margin: 0.5rem 0; border-radius: 6px; }
+  .rich .tex-error { color: rgb(var(--pen)); font-size: 0.85em; }
+  .rich .img-missing { color: rgb(var(--muted)); font-size: 0.85em; }
+  .rich mjx-container, .rich .katex-html { max-width: 100%; }
+  .rich .katex-html { overflow-x: auto; overflow-y: hidden; }
+
+  /* Ô tô của phiếu trả lời trắc nghiệm — điểm nhấn riêng của sản phẩm */
+  .bubble {
+    @apply relative inline-flex h-9 w-9 select-none items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors;
+    border-color: rgb(var(--brand) / 0.35);
+    color: rgb(var(--brand));
+    background: rgb(var(--surface));
+  }
+  .bubble[data-state='filled'] { background: rgb(var(--brand)); border-color: rgb(var(--brand)); color: rgb(var(--on-brand)); }
+  .bubble[data-current='true'] { box-shadow: 0 0 0 3px rgb(var(--ground)), 0 0 0 5px rgb(var(--ink)); }
+  .bubble[data-flag='true']::after {
+    content: ''; position: absolute; top: -2px; right: -2px; width: 10px; height: 10px; border-radius: 9999px;
+    background: rgb(var(--warn)); box-shadow: 0 0 0 2px rgb(var(--ground));
+  }
+  .bubble[data-state='right'] { background: rgb(var(--ok)); border-color: rgb(var(--ok)); color: rgb(var(--surface)); }
+  .bubble[data-state='part'] { background: rgb(var(--warn-soft)); border-color: rgb(var(--warn)); color: rgb(var(--warn)); }
+  .bubble[data-state='wrong'] { background: rgb(var(--pen-soft)); border-color: rgb(var(--pen)); color: rgb(var(--pen)); }
+
+  /* Dấu chấm điểm bằng bút đỏ */
+  .grade-mark { color: rgb(var(--pen)); font-weight: 700; letter-spacing: -0.02em; transform: rotate(-4deg); display: inline-block; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }

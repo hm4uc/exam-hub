@@ -1,9 +1,11 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
+// Ứng dụng gần như toàn trang động (cần đăng nhập) nên không bật cacheComponents.
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
+  experimental: {
+    serverActions: { bodySizeLimit: '4mb' },
+  },
+  poweredByHeader: false,
 };
 
 export default nextConfig;
