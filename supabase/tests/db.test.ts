@@ -157,6 +157,20 @@ describe('schema + RPC', () => {
     expect((await one(`select submitted_at is not null s, score from public.attempts where id=$1`, [st.attempt_id])).s).toBe(true);
   });
 
+  it("giáo viên thao tác bằng quyền authenticated (như app thật)", async () => {
+    await db.exec("set role authenticated");
+    await as(teacher);
+    const c = (await one(`insert into public.classes (name) values ('Lớp GV') returning id`)).id;
+    const e = (await one(`insert into public.exams (title) values ('Đề GV') returning id`)).id;
+    await db.query(`insert into public.questions (exam_id, position, type, stem, stem_html, answer) values ($1, 1, 'short', 'x', 'x', '["1"]')`, [e]);
+    const a = await one(`insert into public.assignments (exam_id, class_id, title, opens_at, closes_at, duration_minutes)
+      values ($1, $2, 'Bài GV', now(), now() + interval '1 day', 10) returning code`, [e, c]);
+    expect(a.code).toMatch(/^[a-z2-9]{6}$/);
+    await db.query(`update public.questions set answer = '["2"]' where exam_id = $1`, [e]);
+    await db.query(`select public.revoke_sessions($1)`, [s1]);
+    await db.exec("reset role");
+  });
+
   it('anon không gọi được RPC', async () => {
     await db.exec('set role anon');
     await expect(db.query(`select public.my_assignments()`)).rejects.toThrow(/permission denied/);

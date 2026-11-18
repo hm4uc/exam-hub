@@ -9,7 +9,8 @@ if (!username || !fullName || !password) {
   process.exit(1);
 }
 if (!/^[a-z0-9._]{3,30}$/.test(username)) { console.error('Tên đăng nhập: 3–30 ký tự a-z, 0-9, dấu chấm, gạch dưới.'); process.exit(1); }
-if (password.length < 8) { console.error('Mật khẩu giáo viên cần ít nhất 8 ký tự.'); process.exit(1); }
+if (password.length < 6) { console.error('Mật khẩu cần ít nhất 6 ký tự.'); process.exit(1); }
+if (password.length < 10) console.warn('⚠ Mật khẩu ngắn: nên đổi sang mật khẩu dài hơn ở trang Đổi mật khẩu.');
 
 const env = { ...readEnv('.env.local'), ...process.env };
 const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
