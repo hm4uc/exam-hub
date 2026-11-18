@@ -34,8 +34,7 @@ const vars = {
   CRON_SECRET: cronSecret,
 };
 for (const [k, v] of Object.entries(vars)) {
-  vercel(['env', 'rm', k, 'production', '--yes']);
-  r = vercel(['env', 'add', k, 'production', ...(k.startsWith('NEXT_PUBLIC') ? [] : ['--sensitive'])], v);
+  r = vercel(['env', 'add', k, 'production', '--force', ...(k.startsWith('NEXT_PUBLIC') ? [] : ['--sensitive'])], v);
   console.log(`  ${r.ok ? '✓' : '✗'} biến ${k}`);
   if (!r.ok) { console.error(r.out); process.exit(1); }
 }
