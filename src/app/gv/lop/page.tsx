@@ -1,19 +1,18 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Empty, PageTitle } from '@/components/ui';
-import { supabaseServer } from '@/lib/supabase/server';
-import { ClassRow, NewClassForm } from './client';
+import { supabaseServer } from '@/server/supabase/server';
+import { ClassRow, NewClassForm } from '@/features/roster/class-row';
 
 export const metadata: Metadata = { title: 'Lớp' };
 
 export default async function ClassesPage() {
   const supabase = await supabaseServer();
-  const { data: classes } = await supabase
-    .from('classes')
-    .select('id, name, school_year, archived_at, profiles(count), assignments(count)')
-    .order('archived_at', { nullsFirst: true })
-    .order('name');
-  const { count: unassigned } = await supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'student').is('class_id', null);
+  const [{ data: classes }, { count: unassigned }] = await Promise.all([
+    supabase.from('classes').select('id, name, school_year, archived_at, profiles(count), assignments(count)')
+      .order('archived_at', { nullsFirst: true }).order('name'),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'student').is('class_id', null),
+  ]);
 
   return (
     <div className="mx-auto max-w-4xl">

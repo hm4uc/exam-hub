@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { Upload } from 'lucide-react';
 import { Badge, ButtonLink, Empty, PageTitle } from '@/components/ui';
 import { fmtDateTime } from '@/lib/format';
-import { supabaseServer } from '@/lib/supabase/server';
+import { supabaseServer } from '@/server/supabase/server';
 
 export const metadata: Metadata = { title: 'Tổng quan' };
 
@@ -32,7 +32,7 @@ export default async function TeacherHome() {
         <div className="mb-6"><Empty title="Bắt đầu bằng một đề Word">Tải đề lên → soát câu hỏi và đáp án → giao cho lớp → gửi link qua Zalo cho học sinh.</Empty></div>
       )}
       <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">Đang mở</h2>
+        <h2 className="mb-3 text-base font-semibold">Đang mở</h2>
         {!open?.length ? (
           <p className="rounded-xl border border-dashed border-line px-4 py-6 text-center text-sm text-muted">Không có bài nào đang mở.</p>
         ) : (
@@ -53,7 +53,7 @@ export default async function TeacherHome() {
       </section>
       {!!recent?.length && (
         <section className="mt-8">
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">Sắp mở và đã đóng</h2>
+          <h2 className="mb-3 text-base font-semibold">Sắp mở và đã đóng</h2>
           <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
             {recent.map((a) => (
               <li key={a.id}>

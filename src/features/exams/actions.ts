@@ -2,10 +2,10 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
-import { requireTeacher } from '@/lib/auth';
-import { QuestionInputSchema, toQuestionRow } from '@/lib/exam/question-io';
-import type { QuestionInput, Scoring } from '@/lib/exam/types';
-import { supabaseServer } from '@/lib/supabase/server';
+import { requireTeacher } from '@/server/auth';
+import { QuestionInputSchema, toQuestionRow } from '@/domain/exam/question-io';
+import type { QuestionInput, Scoring } from '@/domain/exam/types';
+import { supabaseServer } from '@/server/supabase/server';
 
 export type ActionResult = { ok: true; id?: string; message?: string } | { ok: false; error: string };
 

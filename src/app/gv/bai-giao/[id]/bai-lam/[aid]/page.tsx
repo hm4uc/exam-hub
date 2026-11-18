@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Badge, PageTitle, cx } from '@/components/ui';
 import { fmtDateTime, fmtNum, fmtScore } from '@/lib/format';
-import { supabaseServer } from '@/lib/supabase/server';
+import { supabaseServer } from '@/server/supabase/server';
 
 export const metadata: Metadata = { title: 'Bài làm' };
 

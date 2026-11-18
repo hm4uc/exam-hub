@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { PageTitle } from '@/components/ui';
-import { supabaseServer } from '@/lib/supabase/server';
-import { AssignForm } from './assign-form';
+import { supabaseServer } from '@/server/supabase/server';
+import { AssignForm } from '@/features/assignments/assign-form';
 
 export const metadata: Metadata = { title: 'Giao bài' };
 

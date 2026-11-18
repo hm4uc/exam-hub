@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { useActionState, useRef, useState, useTransition } from 'react';
 import { Alert, Badge, Button, Input } from '@/components/ui';
-import { archiveClass, createClass, renameClass, type Res } from '../hoc-sinh/actions';
+import { archiveClass, createClass, renameClass, type Res } from './actions';
 
 const thisYear = () => { const d = new Date(); const y = d.getMonth() >= 7 ? d.getFullYear() : d.getFullYear() - 1; return `${y}-${y + 1}`; };
 
@@ -35,7 +35,7 @@ export function ClassRow({ c }: { c: { id: string; name: string; school_year: st
         </form>
       ) : (
         <div className="min-w-0 flex-1">
-          <Link href={`/gv/hoc-sinh?lop=${c.id}`} className="font-semibold text-brand hover:underline">{c.name}</Link>
+          <Link href={`/gv/hoc-sinh?lop=${c.id}`} className="inline-flex min-h-10 items-center font-semibold text-brand hover:underline">{c.name}</Link>
           {c.archived && <Badge className="ml-2">Đã lưu trữ</Badge>}
           <p className="num text-sm text-muted">{c.school_year ? `${c.school_year} · ` : ''}{c.students} học sinh · {c.assignments} bài đã giao</p>
         </div>

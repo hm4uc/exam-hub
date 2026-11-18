@@ -1,6 +1,6 @@
 'use client';
 import { cx } from '@/components/ui';
-import type { QType } from '@/lib/exam/types';
+import type { QType } from '@/domain/exam/types';
 
 /** Chọn/sửa đáp án đúng cho một câu: A–D, 4 ý Đ/S, hoặc danh sách số chấp nhận. */
 export function AnswerPicker({ type, labels, value, onChange, idPrefix }: {

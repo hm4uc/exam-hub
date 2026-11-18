@@ -1,17 +1,14 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Send } from 'lucide-react';
 import { Badge, ButtonLink, PageTitle } from '@/components/ui';
-import { DEFAULT_SCORING, type QType, type Scoring } from '@/lib/exam/types';
-import { supabaseServer } from '@/lib/supabase/server';
-import { ExamMeta, QuestionList } from './editor';
+import { DEFAULT_SCORING, type Scoring } from '@/domain/exam/types';
+import { supabaseServer } from '@/server/supabase/server';
+import { ExamMeta, QuestionList } from '@/features/exams/editor';
+import type { QRow } from '@/features/exams/types';
 
 export const metadata: Metadata = { title: 'Sửa đề' };
-
-export interface QRow {
-  id: string; position: number; part: string | null; type: QType; stem: string; stem_html: string;
-  choices: { label: string; text: string; html: string }[]; answer: string | string[]; solution: string | null; points: number | null;
-}
 
 export default async function ExamPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -40,7 +37,7 @@ export default async function ExamPage({ params }: { params: Promise<{ id: strin
               <h2 className="mb-2 font-semibold">Đã giao</h2>
               <ul className="grid gap-1.5">
                 {asg.map((a) => (
-                  <li key={a.id}><a href={`/gv/bai-giao/${a.id}`} className="text-brand hover:underline">{a.title}</a> <span className="text-muted">· {(a.classes as unknown as { name: string } | null)?.name}</span></li>
+                  <li key={a.id}><Link href={`/gv/bai-giao/${a.id}`} className="inline-flex min-h-9 items-center text-brand hover:underline">{a.title}</Link> <span className="text-muted">· {(a.classes as unknown as { name: string } | null)?.name}</span></li>
                 ))}
               </ul>
             </section>

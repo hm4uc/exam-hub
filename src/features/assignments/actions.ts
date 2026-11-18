@@ -2,8 +2,8 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
-import { requireTeacher } from '@/lib/auth';
-import { supabaseServer } from '@/lib/supabase/server';
+import { requireTeacher } from '@/server/auth';
+import { supabaseServer } from '@/server/supabase/server';
 
 export type AsgState = { error?: string } | undefined;
 

@@ -1,7 +1,7 @@
 import 'server-only';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
-import { supabaseServer } from './supabase/server';
+import { supabaseServer } from '@/server/supabase/server';
 
 export interface Me {
   id: string;
@@ -11,6 +11,7 @@ export interface Me {
   class_id: string | null;
   is_locked: boolean;
   must_change_password: boolean;
+  class_name: string | null;
 }
 
 /** Người dùng hiện tại (một lần mỗi request). null nếu chưa đăng nhập. */
@@ -21,10 +22,12 @@ export const getMe = cache(async (): Promise<Me | null> => {
   if (!uid) return null;
   const { data: p } = await supabase
     .from('profiles')
-    .select('id, role, username, full_name, class_id, is_locked, must_change_password')
+    .select('id, role, username, full_name, class_id, is_locked, must_change_password, classes(name)')
     .eq('id', uid)
     .maybeSingle();
-  return (p as Me) ?? null;
+  if (!p) return null;
+  const { classes, ...rest } = p as typeof p & { classes: { name: string } | null };
+  return { ...rest, class_name: classes?.name ?? null } as Me;
 });
 
 async function requireUser(): Promise<Me> {
@@ -47,4 +50,4 @@ export async function requireStudent(): Promise<Me> {
   return me;
 }
 
-export { RPC_MESSAGES as RPC_ERRORS, rpcMessage } from './rpc-messages';
+export { RPC_MESSAGES as RPC_ERRORS, rpcMessage } from '@/lib/rpc-messages';

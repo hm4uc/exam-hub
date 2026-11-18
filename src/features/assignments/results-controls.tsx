@@ -3,7 +3,7 @@ import { Check, Copy, Download } from 'lucide-react';
 import { useActionState, useState, useSyncExternalStore, useTransition } from 'react';
 import { DateTimeField } from '@/components/datetime-field';
 import { Alert, Button, Field, Input, Panel, Select } from '@/components/ui';
-import { closeNow, deleteAssignment, updateAssignment, type AsgState } from '../actions';
+import { closeNow, deleteAssignment, updateAssignment, type AsgState } from './actions';
 
 export function CopyLink({ code }: { code: string }) {
   const origin = useSyncExternalStore(() => () => {}, () => location.origin, () => '');
@@ -70,7 +70,7 @@ export function AssignmentControls({ a, open }: { a: { id: string; title: string
       </form>
       {open && <Button variant="secondary" onClick={() => start(() => closeNow(a.id))} disabled={busy}>Đóng bài ngay</Button>}
       {!confirmDel ? (
-        <button type="button" onClick={() => setConfirmDel(true)} className="justify-self-start text-sm font-medium text-pen hover:underline">Xoá bài giao…</button>
+        <button type="button" onClick={() => setConfirmDel(true)} className="min-h-10 justify-self-start text-sm font-medium text-pen hover:underline">Xoá bài giao…</button>
       ) : (
         <div className="grid gap-2 rounded-lg bg-pen-soft p-3 text-sm text-pen">
           Xoá bài giao và toàn bộ bài làm của học sinh? Không hoàn tác được.

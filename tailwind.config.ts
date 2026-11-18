@@ -5,7 +5,7 @@ const v = (name: string) => `rgb(var(--${name}) / <alpha-value>)`;
 
 export default {
   content: ['./src/**/*.{ts,tsx}'],
-  darkMode: 'media',
+  darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
     extend: {
       colors: {
@@ -16,6 +16,7 @@ export default {
         muted: v('muted'),
         line: v('line'),
         brand: { DEFAULT: v('brand'), strong: v('brand-strong'), soft: v('brand-soft'), on: v('on-brand') },
+        shell: { DEFAULT: v('shell'), ink: v('shell-ink'), muted: v('shell-muted') },
         pen: { DEFAULT: v('pen'), soft: v('pen-soft') },
         ok: { DEFAULT: v('ok'), soft: v('ok-soft') },
         warn: { DEFAULT: v('warn'), soft: v('warn-soft') },

@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { Alert } from '@/components/ui';
-import { getMe } from '@/lib/auth';
-import { SignInForm } from '../auth-forms';
+import { getMe } from '@/server/auth';
+import { SignInForm } from '@/features/auth/forms';
 
 export const metadata: Metadata = { title: 'Đăng nhập' };
 

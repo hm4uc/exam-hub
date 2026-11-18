@@ -2,15 +2,15 @@
 import { FileUp, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
-import { AnswerPicker } from '@/components/exam/answer-picker';
-import { Rich } from '@/components/exam/rich';
+import { AnswerPicker } from './answer-picker';
+import { Rich } from './rich';
 import { Alert, Badge, Button, Field, Input, cx } from '@/components/ui';
-import type { DocxParse } from '@/lib/exam/docx';
-import { normNum, normTF } from '@/lib/exam/parse';
-import { IMAGE_BUCKET } from '@/lib/exam/question-io';
-import { TYPE_NAME, type ParsedQuestion, type QuestionInput } from '@/lib/exam/types';
-import { supabaseBrowser } from '@/lib/supabase/client';
-import { createExam } from '../actions';
+import type { DocxParse } from '@/domain/exam/docx';
+import { normNum, normTF } from '@/domain/exam/parse';
+import { IMAGE_BUCKET } from '@/domain/exam/question-io';
+import { TYPE_NAME, type ParsedQuestion, type QuestionInput } from '@/domain/exam/types';
+import { supabaseBrowser } from '@/server/supabase/client';
+import { createExam } from './actions';
 
 interface Item { q: ParsedQuestion; include: boolean; answer: string | string[] | undefined }
 
@@ -43,7 +43,7 @@ export function UploadClient() {
     if (!/\.docx$/i.test(f.name)) { setErr('Chỉ nhận file Word .docx. File .doc cũ hãy mở bằng Word rồi "Lưu thành" .docx.'); return; }
     setErr(''); setBusy('parse'); setFile(f);
     try {
-      const { parseDocx } = await import('@/lib/exam/docx');
+      const { parseDocx } = await import('@/domain/exam/docx');
       const res = await parseDocx(await f.arrayBuffer());
       setParsed(res);
       setItems(res.questions.map((q) => ({ q, include: true, answer: q.answer })));
@@ -140,7 +140,7 @@ export function UploadClient() {
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     <b>Câu {q.n}</b><Badge tone="brand">{TYPE_NAME[q.type]}</Badge>{q.part && <span className="text-xs text-muted">Phần {q.part}</span>}
                     <label className="ml-auto inline-flex items-center gap-1.5 text-sm text-muted">
-                      <input type="checkbox" checked={!it.include} onChange={(e) => setItems((xs) => xs.map((x, k) => (k === i ? { ...x, include: !e.target.checked } : x)))} className="h-4 w-4 accent-[rgb(var(--pen))]" />
+                      <input type="checkbox" checked={!it.include} onChange={(e) => setItems((xs) => xs.map((x, k) => (k === i ? { ...x, include: !e.target.checked } : x)))} className="h-5 w-5 shrink-0 accent-[rgb(var(--pen))]" />
                       Bỏ câu này
                     </label>
                   </div>
@@ -173,7 +173,7 @@ export function UploadClient() {
                     )}
                   </div>
                   {q.solution && (
-                    <details className="mt-2 text-sm"><summary className="cursor-pointer font-medium text-brand">Lời giải</summary><Rich src={q.solution} imageUrl={imageUrl} className="mt-1 text-muted" /></details>
+                    <details className="mt-2 text-sm"><summary className="cursor-pointer py-2.5 font-medium text-brand">Lời giải</summary><Rich src={q.solution} imageUrl={imageUrl} className="mt-1 text-muted" /></details>
                   )}
                 </li>
               );

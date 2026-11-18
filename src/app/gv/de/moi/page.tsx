@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { PageTitle } from '@/components/ui';
-import { UploadClient } from './upload-client';
+import { UploadClient } from '@/features/exams/upload';
 
 export const metadata: Metadata = { title: 'Tải đề lên' };
 

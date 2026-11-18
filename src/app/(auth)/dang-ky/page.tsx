@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { getMe } from '@/lib/auth';
-import { RegisterForm } from '../auth-forms';
+import { getMe } from '@/server/auth';
+import { RegisterForm } from '@/features/auth/forms';
 
 export const metadata: Metadata = { title: 'Đăng ký' };
 

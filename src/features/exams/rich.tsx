@@ -1,6 +1,6 @@
 'use client';
 import { useMemo } from 'react';
-import { renderRich } from '@/lib/exam/render';
+import { renderRich } from '@/domain/exam/render';
 
 /** Xem trước nội dung "văn bản + \( LaTeX \) + ⟦img:…⟧" ngay trên trình duyệt (màn soát đề của giáo viên). */
 export function Rich({ src, imageUrl, className }: { src: string | null | undefined; imageUrl?: (ref: string) => string | null; className?: string }) {

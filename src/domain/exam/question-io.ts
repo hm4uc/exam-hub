@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { SUPABASE_URL } from '../supabase/env';
+import { SUPABASE_URL } from '@/server/supabase/env';
 import { normNum, normTF } from './parse';
 import { renderRich } from './render';
 import type { QuestionInput } from './types';

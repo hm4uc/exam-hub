@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { Alert, Badge, Empty } from '@/components/ui';
-import { rpcMessage } from '@/lib/auth';
+import { rpcMessage } from '@/server/auth';
 import { fmtDateTime, fmtScore } from '@/lib/format';
-import { supabaseServer } from '@/lib/supabase/server';
+import { supabaseServer } from '@/server/supabase/server';
 
 export const metadata: Metadata = { title: 'Bài của tôi' };
 
@@ -43,7 +43,7 @@ export default async function StudentHome() {
       )}
       {groups.filter((g) => g.list.length).map((g) => (
         <section key={g.title} className="mt-7">
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">{g.title}</h2>
+          <h2 className="mb-3 text-base font-semibold">{g.title}</h2>
           <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
             {g.list.map((i) => {
               const st = STATE[i.state];

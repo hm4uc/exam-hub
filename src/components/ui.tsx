@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import type { ComponentProps, ReactNode } from 'react';
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
@@ -71,7 +72,7 @@ export function PageTitle({ title, children, back }: { title: string; children?:
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
-        {back && <Link href={back.href} className="mb-1 inline-block text-sm text-muted hover:text-brand">← {back.label}</Link>}
+        {back && <Link href={back.href} className="-my-1 mb-1 inline-flex min-h-10 max-w-full items-center gap-1 text-sm text-muted hover:text-brand"><ArrowLeft className="h-4 w-4 shrink-0" aria-hidden /><span className="truncate">{back.label}</span></Link>}
         <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{title}</h1>
       </div>
       {children && <div className="flex flex-wrap gap-2">{children}</div>}
@@ -84,6 +85,34 @@ export function Empty({ title, children }: { title: string; children?: ReactNode
     <div className="rounded-xl border border-dashed border-line px-5 py-10 text-center">
       <p className="font-semibold">{title}</p>
       {children && <div className="mx-auto mt-1 max-w-md text-sm text-muted">{children}</div>}
+    </div>
+  );
+}
+
+/** Khối giữ chỗ khi trang đang tải. */
+export function Skeleton({ className }: { className?: string }) {
+  return <div aria-hidden className={cx('animate-pulse rounded-lg bg-sunken', className)} />;
+}
+
+/** Khung trang đang tải: tiêu đề + danh sách. Hiện ngay khi bấm chuyển trang. */
+export function PageSkeleton({ rows = 5, aside = false }: { rows?: number; aside?: boolean }) {
+  return (
+    <div role="status" aria-label="Đang tải">
+      <div className="mb-6 flex items-end justify-between gap-3">
+        <Skeleton className="h-8 w-48 sm:w-64" />
+        <Skeleton className="h-10 w-32" />
+      </div>
+      <div className={cx('grid items-start gap-6', aside && 'lg:grid-cols-[minmax(0,1fr)_20rem]')}>
+        <div className="overflow-hidden rounded-xl border border-line bg-surface">
+          {Array.from({ length: rows }, (_, i) => (
+            <div key={i} className="flex items-center gap-3 border-b border-line px-4 py-3.5 last:border-0">
+              <div className="grid flex-1 gap-2"><Skeleton className="h-4 w-3/5" /><Skeleton className="h-3 w-2/5" /></div>
+              <Skeleton className="h-6 w-16 rounded-full" />
+            </div>
+          ))}
+        </div>
+        {aside && <Skeleton className="hidden h-64 rounded-xl lg:block" />}
+      </div>
     </div>
   );
 }

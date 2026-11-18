@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Empty, PageTitle, cx } from '@/components/ui';
 import { fmtDateTime } from '@/lib/format';
-import { supabaseServer } from '@/lib/supabase/server';
-import { StudentRow } from './client';
+import { supabaseServer } from '@/server/supabase/server';
+import { StudentRow } from '@/features/roster/student-row';
 
 export const metadata: Metadata = { title: 'Học sinh' };
 
@@ -26,39 +26,38 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   return (
     <>
       <PageTitle title="Học sinh" />
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <nav aria-label="Lọc theo lớp" className="flex flex-wrap gap-1.5">
+      <div className="mb-4 grid gap-3 md:flex md:items-center">
+        <nav aria-label="Lọc theo lớp" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:px-0 md:pb-0">
           {tabs.map((t) => (
             <Link key={t.id || 'all'} href={`/gv/hoc-sinh${t.id ? `?lop=${t.id}` : ''}`} aria-current={lop === t.id ? 'page' : undefined}
-              className={cx('rounded-full border px-3 py-1 text-sm font-medium', lop === t.id ? 'border-brand bg-brand text-brand-on' : 'border-line bg-surface hover:border-brand/50')}>
+              className={cx('inline-flex min-h-10 shrink-0 items-center rounded-full border px-3.5 text-sm font-medium transition-colors', lop === t.id ? 'border-brand bg-brand text-brand-on' : 'border-line bg-surface hover:border-brand/50')}>
               {t.name}
             </Link>
           ))}
         </nav>
-        <form className="ml-auto" role="search">
+        <form className="md:ml-auto" role="search">
           {lop && <input type="hidden" name="lop" value={lop} />}
-          <input name="q" defaultValue={q} placeholder="Tìm tên hoặc tên đăng nhập" aria-label="Tìm học sinh"
-            className="min-h-10 w-64 max-w-full rounded-lg border border-line bg-surface px-3 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25" />
+          <input name="q" type="search" defaultValue={q} placeholder="Tìm tên hoặc tên đăng nhập" aria-label="Tìm học sinh"
+            className="min-h-11 w-full rounded-lg border border-line bg-surface px-3 text-base focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25 md:w-72 md:text-sm" />
         </form>
       </div>
       {!students?.length ? (
-        <Empty title={lop === 'chua-xep' ? 'Không có học sinh nào chưa xếp lớp' : 'Chưa có học sinh'}>
-          Học sinh tự tạo tài khoản khi mở link bài kiểm tra bạn gửi.
+        <Empty title={lop === 'chua-xep' ? 'Không có học sinh nào chưa xếp lớp' : q ? `Không tìm thấy “${q}”` : 'Chưa có học sinh'}>
+          {q ? 'Thử tìm bằng tên khác hoặc tên đăng nhập.' : 'Học sinh tự tạo tài khoản khi mở link bài kiểm tra bạn gửi.'}
         </Empty>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-line bg-surface">
-          <table className="w-full min-w-[46rem] text-sm">
-            <thead className="bg-sunken text-left text-xs uppercase tracking-wider text-muted">
-              <tr><th className="px-4 py-2.5 font-semibold">Học sinh</th><th className="px-4 py-2.5 font-semibold">Lớp</th><th className="px-4 py-2.5 font-semibold">Tạo lúc</th><th className="px-4 py-2.5 font-semibold"><span className="sr-only">Thao tác</span></th></tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {students.map((s) => (
-                <StudentRow key={s.id} s={{ ...s, created: fmtDateTime(s.created_at), duplicate: (counts.get(dupKey(s)) ?? 0) > 1 }} classes={classes ?? []} />
-              ))}
-            </tbody>
-          </table>
+        <div className="overflow-hidden rounded-xl border border-line bg-surface">
+          <div className="hidden grid-cols-[minmax(0,1fr)_11rem_9rem_17rem] gap-4 bg-sunken px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted lg:grid">
+            <span>Học sinh</span><span>Lớp</span><span>Tạo lúc</span><span className="sr-only">Thao tác</span>
+          </div>
+          <ul className="divide-y divide-line">
+            {students.map((s) => (
+              <StudentRow key={s.id} s={{ ...s, created: fmtDateTime(s.created_at), duplicate: (counts.get(dupKey(s)) ?? 0) > 1 }} classes={classes ?? []} />
+            ))}
+          </ul>
         </div>
       )}
+      <p className="mt-3 text-sm text-muted num">{students?.length ?? 0} học sinh</p>
     </>
   );
 }

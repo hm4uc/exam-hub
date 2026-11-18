@@ -4,46 +4,76 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Thế giới thị giác: tờ giấy kiểm tra. Mực bút bi xanh cho thao tác, bút đỏ của giáo viên cho chấm và lỗi.
-   Màu ở dạng "R G B" để Tailwind ghép độ trong suốt. */
+/* Thế giới thị giác: tờ giấy kiểm tra trên nền xanh dương tối. Mực xanh đậm cho thao tác, khung (shell) xanh navy,
+   bút đỏ của giáo viên cho chấm và lỗi. Màu ở dạng "R G B" để Tailwind ghép độ trong suốt.
+   Chế độ: theo máy (mặc định) hoặc chọn tay qua <html data-theme="light|dark">. Tối được thiết kế riêng, không đảo màu. */
 :root {
-  --ground: 244 246 250;
+  --ground: 243 246 251;
   --surface: 255 255 255;
-  --sunken: 236 240 247;
-  --ink: 22 30 52;
-  --muted: 88 98 122;
-  --line: 219 225 236;
-  --brand: 37 64 196;
-  --brand-strong: 25 44 150;
-  --brand-soft: 230 235 252;
+  --sunken: 234 239 247;
+  --ink: 15 23 42;
+  --muted: 71 85 105;
+  --line: 214 222 235;
+  --brand: 29 64 160;
+  --brand-strong: 21 47 122;
+  --brand-soft: 229 236 251;
   --on-brand: 255 255 255;
-  --pen: 200 40 36;
-  --pen-soft: 253 233 231;
-  --ok: 18 120 86;
-  --ok-soft: 225 244 236;
-  --warn: 150 92 0;
-  --warn-soft: 255 242 214;
+  --shell: 14 30 74;
+  --shell-ink: 255 255 255;
+  --shell-muted: 191 205 238;
+  --pen: 185 28 28;
+  --pen-soft: 254 234 234;
+  --ok: 21 115 71;
+  --ok-soft: 222 245 233;
+  --warn: 146 84 0;
+  --warn-soft: 255 243 214;
   color-scheme: light;
 }
 
+:root[data-theme='dark'] {
+  --ground: 9 14 27;
+  --surface: 16 24 43;
+  --sunken: 23 33 57;
+  --ink: 228 233 242;
+  --muted: 151 165 191;
+  --line: 36 49 78;
+  --brand: 125 165 250;
+  --brand-strong: 160 190 252;
+  --brand-soft: 27 42 82;
+  --on-brand: 8 18 46;
+  --shell: 12 20 40;
+  --shell-ink: 228 233 242;
+  --shell-muted: 151 165 191;
+  --pen: 248 113 113;
+  --pen-soft: 63 24 28;
+  --ok: 74 210 140;
+  --ok-soft: 18 50 38;
+  --warn: 245 190 80;
+  --warn-soft: 56 42 14;
+  color-scheme: dark;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
-    --ground: 15 19 30;
-    --surface: 23 28 42;
-    --sunken: 30 36 54;
-    --ink: 229 233 243;
-    --muted: 155 165 188;
-    --line: 45 53 75;
-    --brand: 138 160 255;
-    --brand-strong: 172 189 255;
-    --brand-soft: 34 44 82;
-    --on-brand: 12 18 44;
-    --pen: 255 132 122;
-    --pen-soft: 62 28 30;
-    --ok: 96 211 160;
-    --ok-soft: 20 52 40;
-    --warn: 242 194 91;
-    --warn-soft: 56 43 16;
+  :root:not([data-theme='light']) {
+    --ground: 9 14 27;
+    --surface: 16 24 43;
+    --sunken: 23 33 57;
+    --ink: 228 233 242;
+    --muted: 151 165 191;
+    --line: 36 49 78;
+    --brand: 125 165 250;
+    --brand-strong: 160 190 252;
+    --brand-soft: 27 42 82;
+    --on-brand: 8 18 46;
+    --shell: 12 20 40;
+    --shell-ink: 228 233 242;
+    --shell-muted: 151 165 191;
+    --pen: 248 113 113;
+    --pen-soft: 63 24 28;
+    --ok: 74 210 140;
+    --ok-soft: 18 50 38;
+    --warn: 245 190 80;
+    --warn-soft: 56 42 14;
     color-scheme: dark;
   }
 }

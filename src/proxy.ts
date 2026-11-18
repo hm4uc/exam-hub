@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { COOKIE_OPTIONS, SUPABASE_ANON_KEY, SUPABASE_URL } from '@/lib/supabase/env';
+import { COOKIE_OPTIONS, SUPABASE_ANON_KEY, SUPABASE_URL } from '@/server/supabase/env';
 
 const PUBLIC = ['/dang-nhap', '/dang-ky', '/thiet-bi-chua-ho-tro', '/api/keepalive'];
 

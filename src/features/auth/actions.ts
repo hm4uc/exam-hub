@@ -1,9 +1,9 @@
 'use server';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
-import { supabaseAdmin } from '@/lib/supabase/admin';
-import { usernameToEmail } from '@/lib/supabase/env';
-import { supabaseServer } from '@/lib/supabase/server';
+import { supabaseAdmin } from '@/server/supabase/admin';
+import { usernameToEmail } from '@/server/supabase/env';
+import { supabaseServer } from '@/server/supabase/server';
 
 export type FormState = { error?: string; fields?: Record<string, string> } | undefined;
 

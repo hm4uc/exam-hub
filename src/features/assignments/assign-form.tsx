@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useActionState, useMemo } from 'react';
 import { DateTimeField } from '@/components/datetime-field';
 import { Alert, Button, Field, Input, Select } from '@/components/ui';
-import { createAssignment, type AsgState } from '../../../bai-giao/actions';
+import { createAssignment, type AsgState } from './actions';
 
 export function AssignForm({ examId, examTitle, classes }: { examId: string; examTitle: string; classes: { id: string; name: string }[] }) {
   const [state, action, pending] = useActionState<AsgState, FormData>(createAssignment, undefined);
@@ -42,8 +42,8 @@ export function AssignForm({ examId, examTitle, classes }: { examId: string; exa
       <section className="grid gap-4 rounded-xl border border-line bg-surface p-4 sm:grid-cols-2 sm:p-5">
         <fieldset className="grid gap-2 text-sm">
           <legend className="mb-1 font-medium">Chống chép bài</legend>
-          <label className="flex items-center gap-2"><input type="checkbox" name="shuffle_questions" defaultChecked className="h-4 w-4 accent-[rgb(var(--brand))]" />Đảo thứ tự câu (trong từng Phần)</label>
-          <label className="flex items-center gap-2"><input type="checkbox" name="shuffle_choices" defaultChecked className="h-4 w-4 accent-[rgb(var(--brand))]" />Đảo thứ tự phương án A–D</label>
+          <label className="flex min-h-10 items-center gap-2.5"><input type="checkbox" name="shuffle_questions" defaultChecked className="h-5 w-5 shrink-0 accent-[rgb(var(--brand))]" />Đảo thứ tự câu (trong từng Phần)</label>
+          <label className="flex min-h-10 items-center gap-2.5"><input type="checkbox" name="shuffle_choices" defaultChecked className="h-5 w-5 shrink-0 accent-[rgb(var(--brand))]" />Đảo thứ tự phương án A–D</label>
           <p className="text-muted">Số lần học sinh rời khỏi trang làm bài luôn được ghi lại.</p>
         </fieldset>
         <Field label="Mật khẩu vào bài (không bắt buộc)" htmlFor="access_password" hint="Dùng khi kiểm tra tại lớp: đọc mật khẩu lúc bắt đầu.">
@@ -63,7 +63,7 @@ export function AssignForm({ examId, examTitle, classes }: { examId: string; exa
           </Select>
         </Field>
       </section>
-      <Button type="submit" disabled={pending} className="justify-self-start">{pending ? 'Đang giao…' : 'Giao bài và lấy link'}</Button>
+      <Button type="submit" disabled={pending} className="min-h-11 w-full sm:w-auto sm:justify-self-start">{pending ? 'Đang giao…' : 'Giao bài và lấy link'}</Button>
     </form>
   );
 }

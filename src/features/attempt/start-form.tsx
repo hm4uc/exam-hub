@@ -2,7 +2,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Alert, Button, Field, Input } from '@/components/ui';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { supabaseBrowser } from '@/server/supabase/client';
 import { RPC_MESSAGES } from '@/lib/rpc-messages';
 
 export function StartForm({ code, hasPassword, duration }: { code: string; hasPassword: boolean; duration: number }) {

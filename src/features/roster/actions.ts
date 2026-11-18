@@ -1,9 +1,9 @@
 'use server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { requireTeacher } from '@/lib/auth';
-import { supabaseAdmin } from '@/lib/supabase/admin';
-import { supabaseServer } from '@/lib/supabase/server';
+import { requireTeacher } from '@/server/auth';
+import { supabaseAdmin } from '@/server/supabase/admin';
+import { supabaseServer } from '@/server/supabase/server';
 
 export type Res = { ok: true; message?: string; password?: string } | { ok: false; error: string };
 const uuid = z.string().uuid();

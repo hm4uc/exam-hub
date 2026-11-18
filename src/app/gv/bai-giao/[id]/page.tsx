@@ -3,8 +3,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Badge, PageTitle, Panel } from '@/components/ui';
 import { fmtDateTime, fmtScore } from '@/lib/format';
-import { supabaseServer } from '@/lib/supabase/server';
-import { AssignmentControls, CopyLink, ExportButton, type ExportRow } from './client';
+import { supabaseServer } from '@/server/supabase/server';
+import { AssignmentControls, CopyLink, ExportButton, type ExportRow } from '@/features/assignments/results-controls';
 
 export const metadata: Metadata = { title: 'Bài giao' };
 
@@ -66,27 +66,27 @@ export default async function AssignmentResults({ params }: { params: Promise<{ 
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="grid gap-4">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <dl className="grid grid-cols-2 overflow-hidden rounded-xl border border-line bg-surface sm:grid-cols-4">
             {[
               ['Lớp', className],
               ['Đã nộp', `${done.length}/${rows.length}`],
               ['Đang làm', String(rows.filter((r) => r.status === 'doing').length)],
               ['Điểm trung bình', avg == null ? '—' : fmtScore(avg)],
-            ].map(([k, v]) => (
-              <div key={k} className="rounded-xl border border-line bg-surface px-4 py-3">
-                <p className="text-xs text-muted">{k}</p>
-                <p className="num mt-0.5 text-lg font-bold">{v}</p>
+            ].map(([k, v], i) => (
+              <div key={k} className={`px-4 py-3 ${i % 2 ? 'border-l border-line' : ''} ${i >= 2 ? 'border-t border-line sm:border-t-0 sm:border-l' : ''}`}>
+                <dt className="text-xs text-muted">{k}</dt>
+                <dd className={`num mt-0.5 truncate text-lg font-bold ${k === 'Điểm trung bình' && avg != null ? 'grade-mark' : ''}`}>{v}</dd>
               </div>
             ))}
-          </div>
+          </dl>
 
           <div className="overflow-x-auto rounded-xl border border-line bg-surface">
-            <table className="w-full min-w-[40rem] text-sm">
+            <table className="w-full text-sm">
               <thead className="bg-sunken text-left text-xs uppercase tracking-wider text-muted">
                 <tr>
-                  <th className="px-4 py-2.5 font-semibold">Học sinh</th><th className="px-4 py-2.5 font-semibold">Trạng thái</th>
+                  <th className="px-4 py-2.5 font-semibold">Học sinh</th><th className="hidden px-4 py-2.5 font-semibold sm:table-cell">Trạng thái</th>
                   <th className="px-4 py-2.5 text-right font-semibold">Điểm{a.max_attempts > 1 ? ' cao nhất' : ''}</th>
-                  <th className="px-4 py-2.5 text-right font-semibold">Rời trang</th><th className="px-4 py-2.5 font-semibold">Nộp lúc</th>
+                  <th className="hidden px-4 py-2.5 text-right font-semibold md:table-cell">Rời trang</th><th className="hidden px-4 py-2.5 font-semibold md:table-cell">Nộp lúc</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -95,15 +95,19 @@ export default async function AssignmentResults({ params }: { params: Promise<{ 
                     <td className="px-4 py-2.5">
                       <p className="font-medium">{r.s.full_name}</p>
                       <p className="text-xs text-muted">{r.s.username}{!(students ?? []).some((x) => x.id === r.s.id) && ' · đã chuyển lớp'}</p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted sm:hidden">
+                        {r.status === 'done' ? <Badge tone="ok">Đã nộp{r.list.length > 1 ? ` · ${r.list.length} lượt` : ''}</Badge> : r.status === 'doing' ? <Badge tone="warn">Đang làm</Badge> : <Badge>Chưa làm</Badge>}
+                        {r.list.length > 0 && <span className={r.leaves >= 3 ? 'font-semibold text-warn' : ''}>Rời trang {r.leaves}</span>}
+                      </div>
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="hidden px-4 py-2.5 sm:table-cell">
                       {r.status === 'done' ? <Badge tone="ok">Đã nộp{r.list.length > 1 ? ` · ${r.list.length} lượt` : ''}</Badge> : r.status === 'doing' ? <Badge tone="warn">Đang làm</Badge> : <Badge>Chưa làm</Badge>}
                     </td>
                     <td className="num px-4 py-2.5 text-right">
-                      {r.best ? <Link href={`/gv/bai-giao/${id}/bai-lam/${r.best.id}`} className="grade-mark text-base hover:underline">{fmtScore(r.best.score)}</Link> : <span className="text-muted">—</span>}
+                      {r.best ? <Link href={`/gv/bai-giao/${id}/bai-lam/${r.best.id}`} className="grade-mark inline-flex min-h-10 items-center text-lg hover:underline">{fmtScore(r.best.score)}</Link> : <span className="text-muted">—</span>}
                     </td>
-                    <td className={`num px-4 py-2.5 text-right ${r.leaves >= 3 ? 'font-semibold text-warn' : 'text-muted'}`}>{r.list.length ? r.leaves : '—'}</td>
-                    <td className="num px-4 py-2.5 text-muted">{r.last?.submitted_at ? fmtDateTime(r.last.submitted_at) : ''}</td>
+                    <td className={`num hidden px-4 py-2.5 text-right md:table-cell ${r.leaves >= 3 ? 'font-semibold text-warn' : 'text-muted'}`}>{r.list.length ? r.leaves : '—'}</td>
+                    <td className="num hidden px-4 py-2.5 text-muted md:table-cell">{r.last?.submitted_at ? fmtDateTime(r.last.submitted_at) : ''}</td>
                   </tr>
                 ))}
                 {!rows.length && <tr><td colSpan={5} className="px-4 py-8 text-center text-muted">Lớp chưa có học sinh. Học sinh tự đăng ký qua link sẽ được xếp vào lớp này.</td></tr>}

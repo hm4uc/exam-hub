@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { isCode } from '@/lib/format';
-import { ExamRunner } from './exam-runner';
+import { ExamRunner } from '@/features/attempt/exam-runner';
 
 export const metadata: Metadata = { title: 'Làm bài' };
 

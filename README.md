@@ -36,12 +36,15 @@ npm run typecheck
 
 ## Cấu trúc
 
-| Đường dẫn | Nội dung |
-|---|---|
-| `supabase/migrations/` | Schema, RLS, RPC làm bài, chấm điểm, chấm lại, pg_cron |
-| `supabase/tests/` | Test SQL chạy trên PGlite (Postgres WASM) |
-| `src/lib/exam/` | Phân giải .docx, OMML/công thức chữ → LaTeX, render KaTeX |
-| `src/app/(auth)` | Đăng nhập, đăng ký, đổi mật khẩu |
-| `src/app/(hs)` | Học sinh: trang chủ, `/{mã}` bài giao, `/lam` làm bài, `/ket-qua` |
-| `src/app/gv` | Giáo viên: đề thi, giao bài, bảng điểm, lớp, học sinh |
-| `scripts/` | Cài đặt Supabase, tạo giáo viên, deploy Vercel, tạo file Word mẫu |
+Chia lớp theo hướng clean architecture: phụ thuộc chỉ đi từ ngoài vào trong (`app` → `features` → `server` / `domain`). `domain` không biết gì về Next.js hay Supabase.
+
+| Đường dẫn | Lớp | Nội dung |
+|---|---|---|
+| `src/domain/exam/` | Domain | Logic thuần: phân giải .docx, OMML/công thức chữ → LaTeX, render KaTeX, kiểu dữ liệu, kiểm tra câu hỏi |
+| `src/server/` | Hạ tầng | Client Supabase (trình duyệt / server / service role), phiên đăng nhập `getMe`, `requireTeacher`, `requireStudent` |
+| `src/features/<tính năng>/` | Ứng dụng | Server Action + giao diện riêng của từng nghiệp vụ: `auth`, `exams` (tải, soát, sửa đề), `assignments` (giao bài, bảng điểm), `attempt` (học sinh làm bài), `roster` (lớp, học sinh) |
+| `src/components/` | Giao diện chung | `ui.tsx` (nút, ô nhập, thẻ…), `shell/` (thanh trên, menu, logo), `theme-switch` (Sáng / Tối / Theo máy) |
+| `src/lib/` | Tiện ích | Định dạng ngày giờ, điểm; thông báo lỗi RPC |
+| `src/app/` | Định tuyến | Chỉ `page` / `layout` / `loading`: đọc dữ liệu rồi ghép component từ `features` |
+| `supabase/migrations/`, `supabase/tests/` | CSDL | Schema, RLS, RPC làm bài, chấm điểm, pg_cron; test trên PGlite |
+| `scripts/` | Vận hành | Cài đặt Supabase, tạo giáo viên, deploy Vercel, `smoke-test.mjs` (thử toàn luồng trên project thật) |

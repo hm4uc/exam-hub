@@ -1,13 +1,13 @@
 'use client';
 import { Pencil, Trash2 } from 'lucide-react';
 import { useState, useTransition } from 'react';
-import { AnswerPicker } from '@/components/exam/answer-picker';
-import { Rich } from '@/components/exam/rich';
+import { AnswerPicker } from './answer-picker';
+import { Rich } from './rich';
 import { Alert, Badge, Button, Field, Input, Textarea, cx } from '@/components/ui';
-import { imagePublicUrl } from '@/lib/exam/question-io';
-import { TYPE_NAME, type Scoring } from '@/lib/exam/types';
-import { deleteExam, deleteQuestion, setExamStatus, updateExamMeta, updateQuestion } from '../actions';
-import type { QRow } from './page';
+import { imagePublicUrl } from '@/domain/exam/question-io';
+import { TYPE_NAME, type Scoring } from '@/domain/exam/types';
+import { deleteExam, deleteQuestion, setExamStatus, updateExamMeta, updateQuestion } from './actions';
+import type { QRow } from './types';
 
 const imageUrl = (ref: string) => (ref.includes('/') ? imagePublicUrl(ref) : null);
 
@@ -75,7 +75,7 @@ function QuestionCard({ q, index, scoring, locked }: { q: QRow; index: number; s
             </ul>
           )}
           {q.type === 'short' && <p className="mt-2 text-sm">Đáp án: <b className="num">{(q.answer as string[]).join(' hoặc ')}</b></p>}
-          {q.solution && <details className="mt-2 text-sm"><summary className="cursor-pointer font-medium text-brand">Lời giải</summary><Rich src={q.solution} imageUrl={imageUrl} className="mt-1 text-muted" /></details>}
+          {q.solution && <details className="mt-2 text-sm"><summary className="cursor-pointer py-2.5 font-medium text-brand">Lời giải</summary><Rich src={q.solution} imageUrl={imageUrl} className="mt-1 text-muted" /></details>}
         </>
       ) : (
         <div className="grid gap-4">
@@ -136,8 +136,8 @@ export function ExamMeta({ id, title: t0, scoring: s0, status, count }: { id: st
             <Input value={s[k]} onChange={(e) => setS({ ...s, [k]: e.target.value })} inputMode="decimal" className="max-w-[6rem] text-right" aria-label={`Điểm ${label}`} />
           </label>
         ))}
-        <label className="mt-1 flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={s.scale10} onChange={(e) => setS({ ...s, scale10: e.target.checked })} className="h-4 w-4 accent-[rgb(var(--brand))]" />
+        <label className="mt-1 flex min-h-10 items-center gap-2.5 text-sm">
+          <input type="checkbox" checked={s.scale10} onChange={(e) => setS({ ...s, scale10: e.target.checked })} className="h-5 w-5 shrink-0 accent-[rgb(var(--brand))]" />
           Quy về thang 10
         </label>
       </fieldset>
@@ -150,7 +150,7 @@ export function ExamMeta({ id, title: t0, scoring: s0, status, count }: { id: st
         )}
       </div>
       {!confirmDel ? (
-        <button type="button" onClick={() => setConfirmDel(true)} className="justify-self-start text-sm font-medium text-pen hover:underline">Xoá đề…</button>
+        <button type="button" onClick={() => setConfirmDel(true)} className="min-h-10 justify-self-start text-sm font-medium text-pen hover:underline">Xoá đề…</button>
       ) : (
         <div className="grid gap-2 rounded-lg bg-pen-soft p-3 text-sm text-pen">
           Xoá hẳn đề này cùng file gốc? Không hoàn tác được.

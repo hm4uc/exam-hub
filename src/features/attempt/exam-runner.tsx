@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, cx } from '@/components/ui';
 import { RPC_MESSAGES } from '@/lib/rpc-messages';
-import { supabaseBrowser } from '@/lib/supabase/client';
-import { SUPABASE_ANON_KEY, SUPABASE_URL } from '@/lib/supabase/env';
+import { supabaseBrowser } from '@/server/supabase/client';
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from '@/server/supabase/env';
 
 type QType = 'mcq' | 'tf' | 'short';
 interface Q { id: string; type: QType; stem_html: string; choices: { label: string; html: string }[] }
@@ -236,7 +236,7 @@ export function ExamRunner({ code }: { code: string }) {
             <h2 id="qtitle" className="text-base font-bold">Câu {cur + 1}</h2>
             <span className="text-sm text-muted">· {TYPE_NAME[q.type]}</span>
             <button type="button" onClick={() => setFlags((f) => ({ ...f, [q.id]: !f[q.id] }))}
-              className={cx('ml-auto inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-medium', flags[q.id] ? 'bg-warn-soft text-warn' : 'text-muted hover:bg-sunken')} aria-pressed={!!flags[q.id]}>
+              className={cx('-my-1.5 ml-auto inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium', flags[q.id] ? 'bg-warn-soft text-warn' : 'text-muted hover:bg-sunken')} aria-pressed={!!flags[q.id]}>
               <Flag className="h-4 w-4" aria-hidden /> {flags[q.id] ? 'Đã đánh dấu' : 'Xem lại sau'}
             </button>
           </div>
@@ -313,7 +313,7 @@ export function ExamRunner({ code }: { code: string }) {
           </section>
         )}
         {!confirming && cur < qs.length - 1 && (
-          <button type="button" onClick={() => setConfirming(true)} className="justify-self-end text-sm font-semibold text-muted underline hover:text-brand">Nộp bài sớm</button>
+          <button type="button" onClick={() => setConfirming(true)} className="min-h-11 justify-self-end px-1 text-sm font-semibold text-muted underline hover:text-brand">Nộp bài sớm</button>
         )}
       </main>
     </div>

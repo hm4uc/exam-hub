@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
+import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Alert, ButtonLink, cx } from '@/components/ui';
 import { rpcMessage } from '@/lib/rpc-messages';
 import { fmtDateTime, fmtNum, fmtScore, isCode } from '@/lib/format';
-import { supabaseServer } from '@/lib/supabase/server';
+import { supabaseServer } from '@/server/supabase/server';
 
 export const metadata: Metadata = { title: 'Kết quả' };
 
@@ -31,7 +32,7 @@ export default async function ResultPage({ params, searchParams }: { params: Pro
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-6">
-      <Link href="/" className="text-sm text-muted hover:text-brand">← Bài của tôi</Link>
+      <Link href="/" className="-my-1 inline-flex min-h-10 items-center gap-1 text-sm text-muted hover:text-brand"><ArrowLeft className="h-4 w-4" aria-hidden />Bài của tôi</Link>
       <h1 className="mt-1 text-2xl font-bold tracking-tight">{r.title}</h1>
       <p className="mt-1 text-sm text-muted">Đã nộp lúc {fmtDateTime(r.submitted_at)}</p>
 
@@ -116,7 +117,7 @@ export default async function ResultPage({ params, searchParams }: { params: Pro
                   )}
                   {q.solution_html && (
                     <details className="mt-3 rounded-lg bg-sunken px-3 py-2 text-sm">
-                      <summary className="cursor-pointer font-semibold text-brand">Lời giải</summary>
+                      <summary className="cursor-pointer py-2.5 font-semibold text-brand">Lời giải</summary>
                       <div className="rich mt-2" dangerouslySetInnerHTML={{ __html: q.solution_html }} />
                     </details>
                   )}

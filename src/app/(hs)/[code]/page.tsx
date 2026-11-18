@@ -2,10 +2,10 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Alert, ButtonLink, Panel } from '@/components/ui';
-import { rpcMessage } from '@/lib/auth';
+import { rpcMessage } from '@/server/auth';
 import { fmtDateTime, isCode } from '@/lib/format';
-import { supabaseServer } from '@/lib/supabase/server';
-import { StartForm } from './start-form';
+import { supabaseServer } from '@/server/supabase/server';
+import { StartForm } from '@/features/attempt/start-form';
 
 export const metadata: Metadata = { title: 'Bài kiểm tra' };
 
