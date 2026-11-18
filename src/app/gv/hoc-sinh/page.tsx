@@ -3,20 +3,23 @@ import Link from 'next/link';
 import { Empty, PageTitle, cx } from '@/components/ui';
 import { fmtDateTime } from '@/lib/format';
 import { supabaseServer } from '@/server/supabase/server';
+import { CreateAccountForm } from '@/features/accounts/create-form';
 import { StudentRow } from '@/features/roster/student-row';
 
-export const metadata: Metadata = { title: 'Học sinh' };
+export const metadata: Metadata = { title: 'Tài khoản' };
 
 export default async function StudentsPage({ searchParams }: { searchParams: Promise<{ lop?: string; q?: string }> }) {
   const { lop = '', q = '' } = await searchParams;
   const supabase = await supabaseServer();
+  const teachers = lop === 'giao-vien';
   const { data: classes } = await supabase.from('classes').select('id, name').is('archived_at', null).order('name');
-  let query = supabase.from('profiles').select('id, full_name, username, class_id, is_locked, must_change_password, created_at').eq('role', 'student').order('full_name').limit(500);
+  let query = supabase.from('profiles').select('id, role, full_name, username, class_id, is_locked, must_change_password, created_at')
+    .eq('role', teachers ? 'teacher' : 'student').order('full_name').limit(500);
   if (lop === 'chua-xep') query = query.is('class_id', null);
   else if (/^[0-9a-f-]{36}$/.test(lop)) query = query.eq('class_id', lop);
   if (q.trim()) query = query.or(`full_name.ilike.%${q.trim().replace(/[%,()]/g, '')}%,username.ilike.%${q.trim().replace(/[%,()]/g, '')}%`);
   const { data: students } = await query;
-  const tabs = [{ id: '', name: 'Tất cả' }, { id: 'chua-xep', name: 'Chưa xếp lớp' }, ...(classes ?? [])];
+  const tabs = [{ id: '', name: 'Tất cả học sinh' }, { id: 'chua-xep', name: 'Chưa xếp lớp' }, ...(classes ?? []), { id: 'giao-vien', name: 'Giáo viên' }];
 
   // Học sinh trùng họ tên trong cùng lớp → cảnh báo
   const dupKey = (s: { class_id: string | null; full_name: string }) => `${s.class_id}|${s.full_name.trim().toLowerCase()}`;
@@ -25,7 +28,8 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <PageTitle title="Học sinh" />
+      <PageTitle title="Học sinh và tài khoản" />
+      <CreateAccountForm classes={classes ?? []} defaultClass={/^[0-9a-f-]{36}$/.test(lop) ? lop : undefined} />
       <div className="mb-4 grid gap-3 md:flex md:items-center">
         <nav aria-label="Lọc theo lớp" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:px-0 md:pb-0">
           {tabs.map((t) => (
@@ -48,7 +52,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
       ) : (
         <div className="overflow-hidden rounded-xl border border-line bg-surface">
           <div className="hidden grid-cols-[minmax(0,1fr)_11rem_9rem_17rem] gap-4 bg-sunken px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted lg:grid">
-            <span>Học sinh</span><span>Lớp</span><span>Tạo lúc</span><span className="sr-only">Thao tác</span>
+            <span>{teachers ? 'Giáo viên' : 'Học sinh'}</span><span>{teachers ? '' : 'Lớp'}</span><span>Tạo lúc</span><span className="sr-only">Thao tác</span>
           </div>
           <ul className="divide-y divide-line">
             {students.map((s) => (
@@ -57,7 +61,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
           </ul>
         </div>
       )}
-      <p className="mt-3 text-sm text-muted num">{students?.length ?? 0} học sinh</p>
+      <p className="mt-3 text-sm text-muted num">{students?.length ?? 0} {teachers ? 'giáo viên' : 'học sinh'}</p>
     </>
   );
 }

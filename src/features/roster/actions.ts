@@ -2,7 +2,6 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { requireTeacher } from '@/server/auth';
-import { supabaseAdmin } from '@/server/supabase/admin';
 import { supabaseServer } from '@/server/supabase/server';
 
 export type Res = { ok: true; message?: string; password?: string } | { ok: false; error: string };
@@ -35,61 +34,5 @@ export async function archiveClass(id: string, archived: boolean): Promise<Res> 
   const supabase = await supabaseServer();
   await supabase.from('classes').update({ archived_at: archived ? new Date().toISOString() : null }).eq('id', id);
   revalidatePath('/gv/lop');
-  return { ok: true };
-}
-
-export async function setStudentClass(studentId: string, classId: string | null): Promise<Res> {
-  await requireTeacher();
-  if (!uuid.safeParse(studentId).success || (classId && !uuid.safeParse(classId).success)) return { ok: false, error: 'Dữ liệu không hợp lệ.' };
-  const supabase = await supabaseServer();
-  const { error } = await supabase.from('profiles').update({ class_id: classId }).eq('id', studentId).eq('role', 'student');
-  if (error) return { ok: false, error: 'Chưa chuyển lớp được.' };
-  revalidatePath('/gv/hoc-sinh');
-  return { ok: true };
-}
-
-export async function renameStudent(studentId: string, fullName: string): Promise<Res> {
-  await requireTeacher();
-  const name = fullName.trim();
-  if (!name || name.length > 80) return { ok: false, error: 'Họ tên không hợp lệ.' };
-  const supabase = await supabaseServer();
-  await supabase.from('profiles').update({ full_name: name }).eq('id', studentId).eq('role', 'student');
-  revalidatePath('/gv/hoc-sinh');
-  return { ok: true };
-}
-
-// Mật khẩu tạm dễ đọc cho học sinh (không có ký tự dễ nhầm)
-function tempPassword() {
-  const a = 'abcdefghjkmnpqrstuvwxyz23456789';
-  const bytes = crypto.getRandomValues(new Uint8Array(8));
-  return Array.from(bytes, (b) => a[b % a.length]).join('');
-}
-
-export async function resetPassword(studentId: string): Promise<Res> {
-  await requireTeacher();
-  if (!uuid.safeParse(studentId).success) return { ok: false, error: 'Dữ liệu không hợp lệ.' };
-  const supabase = await supabaseServer();
-  const { data: p } = await supabase.from('profiles').select('role').eq('id', studentId).single();
-  if (p?.role !== 'student') return { ok: false, error: 'Chỉ đặt lại được mật khẩu học sinh.' };
-  const password = tempPassword();
-  const { error } = await supabaseAdmin().auth.admin.updateUserById(studentId, { password });
-  if (error) return { ok: false, error: 'Chưa đặt lại được mật khẩu.' };
-  await supabase.from('profiles').update({ must_change_password: true }).eq('id', studentId);
-  await supabase.rpc('revoke_sessions', { p_user: studentId }); // đăng xuất mọi máy (bỏ qua nếu lỗi)
-  revalidatePath('/gv/hoc-sinh');
-  return { ok: true, password };
-}
-
-export async function setLocked(studentId: string, locked: boolean): Promise<Res> {
-  await requireTeacher();
-  if (!uuid.safeParse(studentId).success) return { ok: false, error: 'Dữ liệu không hợp lệ.' };
-  const supabase = await supabaseServer();
-  const { data: p } = await supabase.from('profiles').select('role').eq('id', studentId).single();
-  if (p?.role !== 'student') return { ok: false, error: 'Không khoá được tài khoản này.' };
-  const { error } = await supabaseAdmin().auth.admin.updateUserById(studentId, { ban_duration: locked ? '876000h' : 'none' });
-  if (error) return { ok: false, error: 'Chưa cập nhật được.' };
-  await supabase.from('profiles').update({ is_locked: locked }).eq('id', studentId);
-  if (locked) await supabase.rpc('revoke_sessions', { p_user: studentId });
-  revalidatePath('/gv/hoc-sinh');
   return { ok: true };
 }

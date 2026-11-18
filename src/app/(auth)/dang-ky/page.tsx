@@ -10,8 +10,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
   if (await getMe()) redirect(next || '/');
   return (
     <>
-      <h1 className="text-xl font-bold">Tạo tài khoản học sinh</h1>
-      <p className="mb-5 mt-1 text-sm text-muted">Chỉ cần làm một lần. Lần sau máy sẽ tự nhớ đăng nhập.</p>
+      <h1 className="mb-5 text-xl font-bold">Đăng ký</h1>
       <RegisterForm next={next} />
     </>
   );

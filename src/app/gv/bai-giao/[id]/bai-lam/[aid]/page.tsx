@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Badge, PageTitle, cx } from '@/components/ui';
 import { fmtDateTime, fmtNum, fmtScore } from '@/lib/format';
+import { DeleteAttemptButton } from '@/features/accounts/account-editor';
 import { supabaseServer } from '@/server/supabase/server';
 
 export const metadata: Metadata = { title: 'Bài làm' };
@@ -28,7 +29,9 @@ export default async function AttemptDetail({ params }: { params: Promise<{ id: 
 
   return (
     <>
-      <PageTitle title={st.full_name} back={{ href: `/gv/bai-giao/${id}`, label: asg.title }} />
+      <PageTitle title={st.full_name} back={{ href: `/gv/bai-giao/${id}`, label: asg.title }}>
+        <DeleteAttemptButton id={aid} back={`/gv/bai-giao/${id}`} label="Xoá bài làm (cho làm lại)" />
+      </PageTitle>
       <div className="mb-5 flex flex-wrap items-end gap-x-8 gap-y-2 rounded-xl border border-line bg-surface p-4">
         <p className="grade-mark num text-5xl leading-none">{t.submitted_at ? fmtScore(t.score) : '—'}</p>
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-sm">

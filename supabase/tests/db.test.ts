@@ -157,6 +157,15 @@ describe('schema + RPC', () => {
     expect((await one(`select submitted_at is not null s, score from public.attempts where id=$1`, [st.attempt_id])).s).toBe(true);
   });
 
+  it('xoá một bài làm ở giữa → học sinh làm lại, lượt mới không trùng số', async () => {
+    await db.query(`delete from public.attempts where student_id = $1 and attempt_no = 1`, [s1]);
+    await db.exec('set role authenticated');
+    await as(s1);
+    const st = (await one(`select public.start_attempt($1, 'abc') j`, [code])).j;
+    await db.exec('reset role');
+    expect((await one(`select attempt_no from public.attempts where id = $1`, [st.attempt_id])).attempt_no).toBe(3);
+  });
+
   it("giáo viên thao tác bằng quyền authenticated (như app thật)", async () => {
     await db.exec("set role authenticated");
     await as(teacher);

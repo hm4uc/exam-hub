@@ -31,13 +31,13 @@ export function RegisterForm({ next }: { next: string }) {
     <form action={action} className="grid gap-4">
       <input type="hidden" name="next" value={next} />
       {state?.error && <Alert>{state.error}</Alert>}
-      <Field label="Họ và tên" htmlFor="full_name" hint="Ghi đúng họ tên để thầy cô nhận ra bạn.">
+      <Field label="Họ và tên" htmlFor="full_name">
         <Input id="full_name" name="full_name" autoComplete="name" required defaultValue={state?.fields?.full_name} />
       </Field>
-      <Field label="Tên đăng nhập" htmlFor="username" hint="Chữ không dấu, số, dấu chấm hoặc gạch dưới. Ví dụ: an.nguyen">
+      <Field label="Tên đăng nhập" htmlFor="username" hint="Ví dụ: an.nguyen">
         <Input id="username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} required pattern="[A-Za-z0-9._]{3,30}" defaultValue={state?.fields?.username} />
       </Field>
-      <Field label="Mật khẩu" htmlFor="password" hint="Ít nhất 6 ký tự. Hãy ghi nhớ: hệ thống không có chức năng quên mật khẩu.">
+      <Field label="Mật khẩu" htmlFor="password" hint="Ít nhất 6 ký tự.">
         <Input id="password" name="password" type="password" autoComplete="new-password" minLength={6} required />
       </Field>
       <Field label="Nhập lại mật khẩu" htmlFor="confirm">
