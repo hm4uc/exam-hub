@@ -29,6 +29,8 @@ Bản spec MVP (`.scratch/exam-hub/spec.md`) gồm chức năng, mô hình dữ 
 - [Học sinh vào lại từ trình duyệt mới thì nhận lại bản ghi cũ thế nào?](issues/11-vao-lai-tu-trinh-duyet-moi.md): không còn áp dụng vì đã chuyển sang tài khoản + mật khẩu.
 - [Mỗi Dạng câu được chấm điểm thế nào?](issues/05-quy-tac-cham-diem.md): điểm mặc định theo Bộ, sửa được theo đề, bật sẵn quy về thang 10; trả lời ngắn so theo giá trị số, nhiều đáp án chấp nhận; 2 chữ số thập phân; sửa đáp án thì tự chấm lại.
 - [Gửi 2–3 file đề thật (.docx) để thử phân giải](issues/09-gui-de-mau.md): có 1 đề mẫu, công thức viết bằng ký tự Unicode (không MathType), đáp án ở "BẢNG ĐÁP ÁN" và "Câu n: Đáp án X." trong lời giải.
+- [Tài khoản học sinh được tạo, đăng nhập và cấp lại mật khẩu thế nào?](issues/12-tai-khoan-hoc-sinh.md): học sinh tự đăng ký bằng tên đăng nhập (không email), giáo viên xếp lớp; giáo viên đặt lại mật khẩu tạm; giữ đăng nhập vĩnh viễn tới khi bấm Đăng xuất.
+- [Mẫu quy ước của file Word đề thi là gì?](issues/06-mau-de-word.md): đáp án từ bảng đáp án / "Đáp án X" / gạch chân-tô đỏ; Dạng câu nhận theo cấu trúc (A–D, a–d, không có gì); có lấy lời giải; ưu tiên công thức chữ thường, MathType/hình hiển thị dạng ảnh.
 
 ## Not yet specified
 

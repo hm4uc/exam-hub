@@ -1,7 +1,7 @@
 # Kiến trúc và mô hình dữ liệu MVP là gì?
 
 Type: grilling
-Status: open
+Status: claimed
 Blocked by: 01, 02, 03, 04, 05, 11, 12
 
 ## Question
