@@ -1,7 +1,7 @@
 'use client';
 import { FileUp, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnswerPicker } from './answer-picker';
 import { Rich } from './rich';
 import { Alert, Badge, Button, Field, Input, cx } from '@/components/ui';
@@ -11,6 +11,7 @@ import { IMAGE_BUCKET } from '@/domain/exam/question-io';
 import { TYPE_NAME, type ParsedQuestion, type QuestionInput } from '@/domain/exam/types';
 import { supabaseBrowser } from '@/server/supabase/client';
 import { createExam } from './actions';
+import { onDroppedFile } from './dropped-file';
 
 interface Item { q: ParsedQuestion; include: boolean; answer: string | string[] | undefined }
 
@@ -29,7 +30,6 @@ export function UploadClient() {
   const [title, setTitle] = useState('');
   const [busy, setBusy] = useState<'' | 'parse' | 'save'>('');
   const [err, setErr] = useState('');
-  const [drag, setDrag] = useState(false);
 
   const imgUrls = useMemo(() => {
     const m = new Map<string, string>();
@@ -53,6 +53,13 @@ export function UploadClient() {
       setErr((e as Error).message || 'Không đọc được file.');
     } finally { setBusy(''); }
   }
+
+  // File thả vào trang (lớp phủ kéo thả ở khung giáo viên). Bỏ qua khi đang lưu.
+  const onFileRef = useRef(onFile);
+  useEffect(() => { onFileRef.current = onFile; });
+  const busyRef = useRef(busy);
+  useEffect(() => { busyRef.current = busy; }, [busy]);
+  useEffect(() => onDroppedFile((f) => { if (busyRef.current !== 'save') onFileRef.current(f); }), []);
 
   const status = items.map((it) => {
     const blocking = it.q.errors.filter((e) => !isAnswerError(e));
@@ -105,13 +112,10 @@ export function UploadClient() {
 
   return (
     <div className="grid gap-5">
-      <label
-        onDragOver={(e) => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)}
-        onDrop={(e) => { e.preventDefault(); setDrag(false); onFile(e.dataTransfer.files[0]); }}
-        className={cx('flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed px-6 py-8 text-center transition-colors', drag ? 'border-brand bg-brand-soft' : 'border-line bg-surface hover:border-brand/60')}>
+      <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-line bg-surface px-6 py-8 text-center transition-colors hover:border-brand/60 focus-within:border-brand">
         {busy === 'parse' ? <Loader2 className="h-7 w-7 animate-spin text-brand" aria-hidden /> : <FileUp className="h-7 w-7 text-brand" aria-hidden />}
         <span className="font-semibold">{file ? file.name : 'Chọn hoặc kéo thả file đề (.docx)'}</span>
-        <span className="text-sm text-muted">File được đọc ngay trên máy của bạn. {file && 'Bấm để chọn file khác.'}</span>
+        <span className="text-sm text-muted">{file ? 'Bấm hoặc kéo thả file khác để thay.' : 'Kéo thả vào bất kỳ đâu trên trang cũng được.'}</span>
         <input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" onChange={(e) => onFile(e.target.files?.[0])} />
       </label>
 
