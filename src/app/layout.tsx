@@ -28,6 +28,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="vi" className={sans.variable} style={{ ['--font-num' as string]: 'var(--font-sans)' }}>
+      <head>
+        {/* Trình duyệt quá cũ (trước Safari 15.4 / Chrome 92) → trang hướng dẫn */}
+        <script dangerouslySetInnerHTML={{ __html: "if(!Array.prototype.at&&location.pathname!=='/thiet-bi-chua-ho-tro')location.replace('/thiet-bi-chua-ho-tro')" }} />
+      </head>
       <body className="min-h-dvh font-sans">{children}</body>
     </html>
   );

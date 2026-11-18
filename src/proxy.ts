@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { COOKIE_OPTIONS, SUPABASE_ANON_KEY, SUPABASE_URL } from '@/lib/supabase/env';
 
-const PUBLIC = ['/dang-nhap', '/dang-ky', '/thiet-bi-chua-ho-tro'];
+const PUBLIC = ['/dang-nhap', '/dang-ky', '/thiet-bi-chua-ho-tro', '/api/keepalive'];
 
 // Làm mới phiên Supabase ở mỗi request (gia hạn cookie) và chuyển người chưa đăng nhập về trang đăng nhập.
 // Phân quyền thật nằm ở Server Component / RLS; đây chỉ là kiểm tra lạc quan.

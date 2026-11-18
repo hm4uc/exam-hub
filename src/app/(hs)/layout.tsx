@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { InAppHint } from '@/components/inapp-hint';
 import { UserMenu } from '@/components/user-menu';
 import { requireStudent } from '@/lib/auth';
 import { supabaseServer } from '@/lib/supabase/server';
@@ -15,6 +16,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
           <UserMenu name={me.full_name} sub={cls?.name ? `Lớp ${cls.name}` : 'Chưa xếp lớp'} />
         </div>
       </header>
+      <InAppHint />
       {children}
     </>
   );

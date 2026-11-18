@@ -49,6 +49,8 @@ export function ExamRunner({ code }: { code: string }) {
   const inflight = useRef(false);
   const done = useRef(false);
   const token = useRef<string>('');
+  // gọi lại bản flush mới nhất từ trong setTimeout (tránh tự tham chiếu trong useCallback)
+  const flushRef = useRef<(keepalive?: boolean) => Promise<void>>(async () => {});
 
   const goResult = useCallback((id: string) => { done.current = true; clearDraft(id); router.replace(`/${code}/ket-qua?id=${id}`); }, [code, router]);
 
@@ -111,15 +113,16 @@ export function ExamRunner({ code }: { code: string }) {
       writeDraft(data.attempt_id, { pending: pending.current, leaves: leaves.current });
       setSave('offline');
       if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => flush(), 4000);
+      timer.current = setTimeout(() => flushRef.current(), 4000);
     } finally {
       inflight.current = false;
     }
     if (Object.keys(pending.current).length) {
       if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => flush(), 800);
+      timer.current = setTimeout(() => flushRef.current(), 800);
     }
   }, [data, goResult, supabase]);
+  useEffect(() => { flushRef.current = flush; }, [flush]);
 
   const setAnswer = useCallback((qid: string, v: string) => {
     if (!data) return;
@@ -183,7 +186,7 @@ export function ExamRunner({ code }: { code: string }) {
     return () => clearInterval(id);
   }, [data, submit]);
 
-  const qs = data?.questions ?? [];
+  const qs = useMemo(() => data?.questions ?? [], [data]);
   const q = qs[cur];
   const doneCount = useMemo(() => qs.filter((x) => isAnswered(x, answers[x.id])).length, [qs, answers]);
 

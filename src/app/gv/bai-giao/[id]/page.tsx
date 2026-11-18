@@ -24,6 +24,8 @@ export default async function AssignmentResults({ params }: { params: Promise<{ 
     supabase.from('profiles').select('id, full_name, username').eq('class_id', a.class_id).eq('role', 'student').order('full_name'),
     supabase.from('attempts').select('id, student_id, attempt_no, submitted_at, deadline_at, score, tab_leaves').eq('assignment_id', id).order('attempt_no'),
   ]);
+  // Server Component: thời điểm hiện tại theo từng request
+  // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
   const byStudent = new Map<string, Att[]>();
   for (const t of (attempts ?? []) as Att[]) byStudent.set(t.student_id, [...(byStudent.get(t.student_id) ?? []), t]);

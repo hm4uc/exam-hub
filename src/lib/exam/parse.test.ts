@@ -46,6 +46,17 @@ describe('đề mẫu của giáo viên', () => {
   });
 });
 
+describe('file Word mẫu tải về', () => {
+  it('phân giải đủ 3 dạng, không lỗi', async () => {
+    const r = await parseDocx(readFileSync(join(__dirname, '..', '..', '..', 'public', 'mau-de-thi.docx')));
+    expect(r.errors).toEqual([]);
+    expect(r.questions.map((q) => [q.type, q.answer, q.errors.length])).toEqual([
+      ['mcq', 'A', 0], ['mcq', 'B', 0], ['tf', 'ĐSĐS', 0], ['short', ['1,5'], 0],
+    ]);
+    expect(r.questions.map((q) => q.part)).toEqual(['I', 'I', 'II', 'III']);
+  });
+});
+
 describe('công thức gõ bằng chữ', () => {
   it.each([
     ['x = π/6 + kπ/3, k ∈ Z', '\\(x = \\frac{\\pi }{6} + \\frac{k\\pi }{3}, k \\in \\mathbb{Z}\\)'],

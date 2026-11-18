@@ -1,14 +1,14 @@
 'use client';
 import { Check, Copy, Download } from 'lucide-react';
-import { useActionState, useEffect, useState, useTransition } from 'react';
+import { useActionState, useState, useSyncExternalStore, useTransition } from 'react';
 import { DateTimeField } from '@/components/datetime-field';
 import { Alert, Button, Field, Input, Panel, Select } from '@/components/ui';
 import { closeNow, deleteAssignment, updateAssignment, type AsgState } from '../actions';
 
 export function CopyLink({ code }: { code: string }) {
-  const [url, setUrl] = useState(`/${code}`);
+  const origin = useSyncExternalStore(() => () => {}, () => location.origin, () => '');
+  const url = `${origin}/${code}`;
   const [copied, setCopied] = useState(false);
-  useEffect(() => setUrl(`${location.origin}/${code}`), [code]);
   const copy = async () => {
     try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); }
     catch { (document.getElementById('asg-link') as HTMLInputElement | null)?.select(); }
@@ -42,15 +42,16 @@ export function AssignmentControls({ a, open }: { a: { id: string; title: string
   const [state, action, pending] = useActionState<AsgState, FormData>(updateAssignment.bind(null, a.id), undefined);
   const [confirmDel, setConfirmDel] = useState(false);
   const [busy, start] = useTransition();
-  const [saved, setSaved] = useState(false);
-  useEffect(() => { if (state && !state.error) setSaved(true); }, [state]);
+  // "Đã lưu" hiện cho tới khi giáo viên sửa tiếp form
+  const [dirtyAt, setDirtyAt] = useState<AsgState | null>(null);
+  const saved = !!state && !state.error && dirtyAt !== state;
 
   return (
     <Panel className="grid gap-3">
       <h2 className="font-semibold">Chỉnh bài giao</h2>
       {state?.error && <Alert>{state.error}</Alert>}
       {saved && !state?.error && <Alert tone="ok">Đã lưu.</Alert>}
-      <form action={action} className="grid gap-3" onChange={() => setSaved(false)}>
+      <form action={action} className="grid gap-3" onChange={() => setDirtyAt(state ?? null)}>
         <Field label="Tên bài" htmlFor="u-title"><Input id="u-title" name="title" defaultValue={a.title} required /></Field>
         <DateTimeField name="opens_at" label="Mở lúc" initial={new Date(a.opens_at)} />
         <DateTimeField name="closes_at" label="Đóng lúc" initial={new Date(a.closes_at)} />
