@@ -2,6 +2,7 @@
 // đã chốt ở phiếu "Mẫu quy ước của file Word đề thi là gì?".
 // Dùng: node parse.js <document.xml> [tên-đề]  → in JSON ra stdout.
 const fs = require('fs');
+const { ommlToLatex, prettifyPlainMath } = require('./math');
 
 const decode = (s) =>
   s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
@@ -25,7 +26,7 @@ function readLines(xml) {
     // duyệt theo thứ tự: run thường, công thức OMML, object OLE, drawing
     for (const m of pxml.matchAll(/<w:r[ >][\s\S]*?<\/w:r>|<m:oMath>[\s\S]*?<\/m:oMath>/g)) {
       const chunk = m[0];
-      if (chunk.startsWith('<m:oMath')) { stats.omml++; push('⟦công thức⟧', false, false); continue; }
+      if (chunk.startsWith('<m:oMath')) { stats.omml++; push(`\\(${ommlToLatex(chunk)}\\)`, false, false); continue; }
       const rpr = (chunk.match(/<w:rPr>([\s\S]*?)<\/w:rPr>/) || [, ''])[1];
       const u = rpr.match(/<w:u w:val="(\w+)"/);
       const c = rpr.match(/<w:color w:val="(\w+)"/);
@@ -161,6 +162,10 @@ function parse(xml) {
       else q.answer = q.type === 'short' ? vals.sort((a, b) => b.length - a.length)[0].split('|') : vals[0];
     }
     q.solution = solution[q.n] || null;
+    // làm đẹp công thức gõ bằng chữ (ngoài phần LaTeX sẵn có)
+    q.stem = prettifyPlainMath(q.stem);
+    q.solution = prettifyPlainMath(q.solution);
+    for (const o of [...q.options, ...q.statements]) o.text = prettifyPlainMath(o.text);
   });
 
   for (const n of Object.keys(table)) if (!seen.has(+n)) errors.push(`Bảng đáp án có câu ${n} nhưng đề không có câu này`);
