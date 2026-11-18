@@ -21,7 +21,14 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - name: Install
+        run: |
+          if ! npm ci > npm-ci.log 2>&1; then
+            # Đưa lỗi lên phần chú thích của lần chạy để đọc nhanh.
+            echo "::error title=npm ci failed::$(grep -E 'ERR|error|npm warn' npm-ci.log | tail -25 | sed ':a;N;$!ba;s/%/%25/g;s/
+/%0A/g')"
+            cat npm-ci.log; exit 1
+          fi
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
