@@ -12,7 +12,14 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Ghi chép và prototype tạm của quá trình lên kế hoạch, không phải mã chạy.
+    ".scratch/**",
   ]),
+  {
+    // Test đọc kết quả SQL tự do: cho phép any.
+    files: ["**/*.test.ts", "supabase/tests/**"],
+    rules: { "@typescript-eslint/no-explicit-any": "off" },
+  },
 ]);
 
 export default eslintConfig;

@@ -47,7 +47,8 @@ beforeAll(async () => {
 afterEach(async () => { await db.exec('reset role'); });
 
 describe('schema + RPC', () => {
-  let teacher: string, s1: string, s2: string, classA: string, classB: string, exam: string, q: Record<string, string> = {};
+  let teacher: string, s1: string, s2: string, classA: string, classB: string, exam: string;
+  const q: Record<string, string> = {};
 
   it('tạo dữ liệu', async () => {
     teacher = await mkUser('co.giao', 'Cô Giáo');

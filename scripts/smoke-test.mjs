@@ -11,7 +11,7 @@ const admin = createClient(URL, env.SUPABASE_SERVICE_ROLE_KEY, opts);
 const tag = randomBytes(3).toString('hex');
 const pass = randomBytes(9).toString('base64url');
 let ok = 0, fail = 0;
-const check = (name, cond, extra = '') => { cond ? ok++ : fail++; console.log(`${cond ? '✓' : '✗'} ${name}${extra ? ` (${extra})` : ''}`); };
+const check = (name, cond, extra = '') => { if (cond) ok++; else fail++; console.log(`${cond ? '✓' : '✗'} ${name}${extra ? ` (${extra})` : ''}`); };
 const must = ({ data, error }, what) => { if (error) throw new Error(`${what}: ${error.message}`); return data; };
 
 async function user(role) {
