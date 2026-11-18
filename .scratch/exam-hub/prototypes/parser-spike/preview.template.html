@@ -1,0 +1,289 @@
+<title>Exam Hub thử nghiệm</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: một cột kiểu tờ đề; thanh trên dính (chọn đề + chế độ); học sinh có thanh đồng hồ dính và lưới số câu. */
+:root {
+  --paper: #f7f8fb; --sheet: #ffffff; --ink: #1b2233; --muted: #5d6679; --line: #dde2ec;
+  --accent: #2346c4; --accent-soft: #e6ebfb; --ok: #157a4a; --ok-soft: #e2f4ea;
+  --bad: #b42318; --bad-soft: #fde8e6; --warn: #8a5a00; --warn-soft: #fff3d6;
+  --f-body: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #11141c; --sheet: #191d28; --ink: #e6e9f2; --muted: #9aa3b8; --line: #2c3243;
+  --accent: #8ea6ff; --accent-soft: #232c4d; --ok: #5fd39a; --ok-soft: #173326;
+  --bad: #ff8a80; --bad-soft: #3a1c1c; --warn: #f2c25b; --warn-soft: #362a12; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #11141c; --sheet: #191d28; --ink: #e6e9f2; --muted: #9aa3b8; --line: #2c3243;
+  --accent: #8ea6ff; --accent-soft: #232c4d; --ok: #5fd39a; --ok-soft: #173326;
+  --bad: #ff8a80; --bad-soft: #3a1c1c; --warn: #f2c25b; --warn-soft: #362a12; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--paper); color: var(--ink); font: 15px/1.55 var(--f-body); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--sheet) }
+.wrap { max-width: 760px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--sheet); border-bottom: 1px solid var(--line); }
+header.top .wrap { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding-block: 10px; }
+.brand { font-weight: 700; letter-spacing: -.01em; margin-right: auto }
+.brand small { font-weight: 500; color: var(--muted); margin-left: 6px }
+select, button, input { font: inherit; color: inherit }
+select { background: var(--sheet); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; max-width: 100% }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden }
+.seg button { border: 0; background: transparent; padding: 7px 12px; cursor: pointer; color: var(--muted); font-weight: 500 }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff }
+:root[data-theme="dark"] .seg button[aria-pressed="true"] { color: #0d1430 }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .seg button[aria-pressed="true"] { color: #0d1430 } }
+button:focus-visible, select:focus-visible, input:focus-visible, label:focus-within { outline: 2px solid var(--accent); outline-offset: 2px }
+main { padding-block: 18px 80px; display: grid; gap: 14px }
+.note { color: var(--muted); font-size: 13px }
+
+/* ---- giáo viên ---- */
+.summary { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; background: var(--accent-soft); color: var(--accent) }
+.pill.ok { background: var(--ok-soft); color: var(--ok) } .pill.bad { background: var(--bad-soft); color: var(--bad) } .pill.warn { background: var(--warn-soft); color: var(--warn) }
+.publish { margin-left: auto; border: 0; border-radius: 10px; padding: 8px 14px; font-weight: 600; background: var(--accent); color: #fff; cursor: pointer }
+.publish:disabled { background: var(--line); color: var(--muted); cursor: not-allowed }
+.q { background: var(--sheet); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0 }
+.q.has-err { border-color: var(--bad) }
+.qhead { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline }
+.qno { font-weight: 700 }
+.stem { white-space: pre-wrap; overflow-wrap: anywhere }
+.opts { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none }
+.opts li { display: flex; gap: 10px; padding: 6px 10px; border-radius: 8px; border: 1px solid transparent; overflow-wrap: anywhere }
+.opts li b { font-family: var(--f-mono); min-width: 1.4em }
+.opts li.correct { background: var(--ok-soft); border-color: var(--ok) }
+.tf { width: 100%; border-collapse: collapse; font-size: 14px }
+.tf td { padding: 6px 8px; border-top: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere }
+.tf td:last-child { text-align: right; white-space: nowrap; font-weight: 700 }
+.tf .Đ { color: var(--ok) } .tf .S { color: var(--bad) }
+.src { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--muted) }
+.src span { border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px }
+.src span code { font-family: var(--f-mono) }
+.err { background: var(--bad-soft); color: var(--bad); border-radius: 8px; padding: 8px 10px; font-size: 14px }
+.warnbox { background: var(--warn-soft); color: var(--warn); border-radius: 8px; padding: 8px 10px; font-size: 14px }
+details.sol summary { cursor: pointer; color: var(--accent); font-size: 14px; font-weight: 500 }
+details.sol div { white-space: pre-wrap; padding-top: 6px; font-size: 14px; color: var(--muted); overflow-wrap: anywhere }
+.ans { font-family: var(--f-mono); font-weight: 600 }
+
+/* ---- học sinh ---- */
+.examhead { position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--topH, 56px)); z-index: 4; background: var(--paper); padding-block: 8px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid var(--line) }
+.timer { font-family: var(--f-mono); font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums }
+.timer.low { color: var(--bad) }
+.saved { font-size: 13px; color: var(--muted); display: inline-flex; gap: 6px; align-items: center }
+.saved i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); display: inline-block }
+.saved.saving i { background: var(--warn) }
+.progress { margin-left: auto; font-size: 13px; color: var(--muted) }
+.choice { display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; background: var(--sheet); overflow-wrap: anywhere }
+.choice input { margin-top: 4px; accent-color: var(--accent); width: 18px; height: 18px; flex: none }
+.choice:has(input:checked) { border-color: var(--accent); background: var(--accent-soft) }
+.choice.sel { border-color: var(--accent); background: var(--accent-soft) }
+.choice b { font-family: var(--f-mono) }
+.tfrow { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line) }
+.tfrow > span { min-width: 0; overflow-wrap: anywhere }
+.tfbtns { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden }
+.tfbtns button { border: 0; background: var(--sheet); padding: 8px 14px; cursor: pointer; font-weight: 600; color: var(--muted) }
+.tfbtns button[aria-pressed="true"].d { background: var(--ok); color: #fff }
+.tfbtns button[aria-pressed="true"].s { background: var(--bad); color: #fff }
+.short { width: 100%; max-width: 240px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--sheet); font-family: var(--f-mono); font-size: 18px }
+.nav { display: flex; gap: 10px; justify-content: space-between }
+.btn { border: 1px solid var(--line); background: var(--sheet); border-radius: 10px; padding: 9px 14px; cursor: pointer; font-weight: 600 }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff }
+.btn:disabled { opacity: .45; cursor: default }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 6px }
+.grid button { aspect-ratio: 1; max-width: 100%; border: 1px solid var(--line); background: var(--sheet); border-radius: 8px; cursor: pointer; font-family: var(--f-mono); font-weight: 600; position: relative }
+.grid button.done { background: var(--accent-soft); border-color: var(--accent); color: var(--accent) }
+.grid button.cur { outline: 2px solid var(--ink); outline-offset: 1px }
+.grid button.flag::after { content: ""; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--warn) }
+.grid button.right { background: var(--ok-soft); border-color: var(--ok); color: var(--ok) }
+.grid button.wrong { background: var(--bad-soft); border-color: var(--bad); color: var(--bad) }
+.panel { background: var(--sheet); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 12px }
+.score { font-size: 44px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center }
+.flagbtn { border: 0; background: none; color: var(--warn); cursor: pointer; font-size: 13px; font-weight: 600; padding: 0 }
+.cfg { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted) }
+.cfg label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer }
+@media (prefers-reduced-motion: no-preference) { .choice, .grid button { transition: background .12s, border-color .12s } }
+</style>
+
+<header class="top" id="top">
+  <div class="wrap">
+    <div class="brand">Exam Hub <small>bản thử phân giải</small></div>
+    <select id="examSel" aria-label="Chọn đề"></select>
+    <div class="seg" role="group" aria-label="Chế độ">
+      <button id="mT" aria-pressed="true">Giáo viên xem trước</button>
+      <button id="mS" aria-pressed="false">Học sinh làm bài</button>
+    </div>
+  </div>
+</header>
+<main class="wrap" id="app"></main>
+
+<script>
+const EXAMS = /*DATA*/[];
+const POINTS = { mcq: 0.25, tf: 1, short: 0.5 };
+const TF_SCALE = [0, 0.1, 0.25, 0.5, 1];
+const TYPE_NAME = { mcq: 'Trắc nghiệm', tf: 'Đúng/Sai', short: 'Trả lời ngắn' };
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const app = $('#app');
+let examIdx = 0, mode = 'T', S = null;
+
+EXAMS.forEach((e, i) => $('#examSel').add(new Option(e.title, i)));
+$('#examSel').onchange = (e) => { examIdx = +e.target.value; S = null; render(); };
+$('#mT').onclick = () => setMode('T');
+$('#mS').onclick = () => setMode('S');
+function setMode(m) { mode = m; $('#mT').setAttribute('aria-pressed', m === 'T'); $('#mS').setAttribute('aria-pressed', m === 'S'); render(); }
+const setTopH = () => document.documentElement.style.setProperty('--topH', $('#top').offsetHeight + 'px');
+addEventListener('resize', setTopH);
+
+function render() { setTopH(); mode === 'T' ? renderTeacher() : renderStudent(); }
+
+/* ---------- Giáo viên: màn xem trước sau phân giải ---------- */
+function renderTeacher() {
+  const ex = EXAMS[examIdx];
+  const errQ = ex.questions.filter((q) => q.errors.length).length;
+  const counts = { mcq: 0, tf: 0, short: 0 };
+  ex.questions.forEach((q) => counts[q.type]++);
+  const errs = ex.errors.length + errQ;
+  let h = `<div class="summary">
+    <span class="pill">${ex.questions.length} câu</span>
+    ${Object.entries(counts).filter(([, n]) => n).map(([t, n]) => `<span class="pill" style="background:transparent;border:1px solid var(--line);color:var(--muted)">${TYPE_NAME[t]}: ${n}</span>`).join('')}
+    ${errs ? `<span class="pill bad">${errQ} câu cần sửa</span>` : `<span class="pill ok">Đủ đáp án, không lỗi</span>`}
+    <button class="publish" ${errs ? 'disabled title="Sửa hết các câu báo đỏ để xuất bản"' : ''}>Xuất bản đề</button>
+  </div>
+  <p class="note">File: <code>${esc(ex.file)}</code>. Công thức trong file: ${ex.stats.omml} Equation, ${ex.stats.ole} MathType, ${ex.stats.images} hình.</p>`;
+  h += ex.errors.map((e) => `<div class="err">${esc(e)}</div>`).join('');
+  for (const q of ex.questions) {
+    h += `<article class="q ${q.errors.length ? 'has-err' : ''}">
+      <div class="qhead"><span class="qno">Câu ${q.n}</span><span class="pill">${TYPE_NAME[q.type]}</span>${q.part ? `<span class="note">Phần ${esc(q.part)}</span>` : ''}</div>
+      <div class="stem">${esc(q.stem)}</div>`;
+    if (q.type === 'mcq') h += `<ul class="opts">${q.options.map((o) => `<li class="${q.answer === o.label ? 'correct' : ''}"><b>${o.label}.</b><span>${esc(o.text)}</span></li>`).join('')}</ul>`;
+    if (q.type === 'tf') h += `<table class="tf"><tbody>${q.statements.map((s, i) => { const v = q.answer ? q.answer[i] : '?'; return `<tr><td>${s.label}) ${esc(s.text)}</td><td class="${v}">${v === 'Đ' ? 'Đúng' : v === 'S' ? 'Sai' : '?'}</td></tr>`; }).join('')}</tbody></table>`;
+    if (q.type === 'short') h += `<div>Đáp án chấp nhận: ${q.answer ? q.answer.map((a) => `<span class="ans">${esc(a)}</span>`).join(' hoặc ') : '<span class="ans">?</span>'}</div>`;
+    const src = Object.entries(q.sources);
+    if (src.length) h += `<div class="src">Đáp án lấy từ: ${src.map(([k, v]) => `<span>${esc(k)}: <code>${esc(v)}</code></span>`).join('')}</div>`;
+    h += q.errors.map((e) => `<div class="err">${esc(e)}</div>`).join('');
+    h += q.warnings.map((e) => `<div class="warnbox">${esc(e)}</div>`).join('');
+    if (q.solution) h += `<details class="sol"><summary>Lời giải</summary><div>${esc(q.solution)}</div></details>`;
+    h += `</article>`;
+  }
+  app.innerHTML = h;
+}
+
+/* ---------- Học sinh: màn làm bài ---------- */
+function shuffle(a, seed) { a = a.slice(); let s = seed; for (let i = a.length - 1; i > 0; i--) { s = (s * 9301 + 49297) % 233280; const j = Math.floor((s / 233280) * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function newSession() {
+  const ex = EXAMS[examIdx];
+  const qs = ex.questions.filter((q) => q.answer);
+  const mins = Math.max(5, Math.round(qs.length * 1.5));
+  return { qs, order: qs.map((_, i) => i), optOrder: {}, cur: 0, ans: {}, flags: {}, deadline: Date.now() + mins * 60000, mins, leaves: 0, done: false, shuffle: false, confirm: false, saving: false, skipped: ex.questions.length - qs.length };
+}
+function applyShuffle() {
+  const seed = 1234;
+  S.order = S.shuffle ? shuffle(S.qs.map((_, i) => i), seed) : S.qs.map((_, i) => i);
+  S.optOrder = {};
+  S.qs.forEach((q, i) => { if (q.type === 'mcq') S.optOrder[i] = S.shuffle ? shuffle([0, 1, 2, 3].slice(0, q.options.length), seed + i) : q.options.map((_, k) => k); });
+}
+function answered(i) { const a = S.ans[i], q = S.qs[i]; if (a == null) return false; if (q.type === 'tf') return a.every((x) => x); return a !== ''; }
+function save() { S.saving = true; paintSaved(); clearTimeout(save.t); save.t = setTimeout(() => { S.saving = false; paintSaved(); }, 450); }
+function paintSaved() { const el = $('#saved'); if (el) { el.className = 'saved' + (S.saving ? ' saving' : ''); el.lastChild.textContent = S.saving ? ' Đang lưu…' : ' Đã lưu'; } }
+
+function grade() {
+  let got = 0, max = 0; const res = {};
+  S.qs.forEach((q, i) => {
+    const a = S.ans[i]; max += POINTS[q.type];
+    let pts = 0;
+    if (q.type === 'mcq') pts = a === q.answer ? POINTS.mcq : 0;
+    if (q.type === 'tf') { const k = a ? a.filter((x, j) => x === q.answer[j]).length : 0; pts = TF_SCALE[k] * POINTS.tf; }
+    if (q.type === 'short') { const n = (s) => { const t = String(s ?? '').trim().replace(',', '.'); return /^-?\d*\.?\d+$/.test(t) ? Number(t) : NaN; }; pts = q.answer.some((x) => n(x) === n(a)) ? POINTS.short : 0; }
+    got += pts; res[i] = pts === POINTS[q.type] ? 'right' : pts > 0 ? 'part' : 'wrong';
+  });
+  return { raw: got, max, ten: max ? (got / max) * 10 : 0, res };
+}
+
+function renderStudent() {
+  if (!S) { S = newSession(); applyShuffle(); }
+  if (S.done) return renderResult();
+  const i = S.order[S.cur], q = S.qs[i];
+  const doneN = S.qs.filter((_, k) => answered(k)).length;
+  let h = `<div class="examhead"><span class="timer" id="timer">--:--</span>
+    <span class="saved" id="saved"><i></i> Đã lưu</span>
+    <span class="progress">Đã làm ${doneN}/${S.qs.length}</span></div>`;
+  if (S.skipped) h += `<div class="warnbox">Bỏ ${S.skipped} câu chưa có đáp án (đề này có lỗi nên ngoài thực tế chưa xuất bản được).</div>`;
+  h += `<div class="cfg"><label><input type="checkbox" id="shuf" ${S.shuffle ? 'checked' : ''}> Đảo câu và phương án (mỗi học sinh một thứ tự)</label><span>Rời tab: ${S.leaves} lần</span></div>`;
+  h += `<article class="q"><div class="qhead"><span class="qno">Câu ${S.cur + 1}</span><span class="pill">${TYPE_NAME[q.type]}</span>
+      <button class="flagbtn" id="flag" style="margin-left:auto">${S.flags[i] ? '★ Bỏ đánh dấu' : '☆ Đánh dấu xem lại'}</button></div>
+    <div class="stem">${esc(q.stem)}</div>`;
+  if (q.type === 'mcq') {
+    const letters = 'ABCD';
+    h += `<div class="opts" role="radiogroup">${S.optOrder[i].map((k, pos) => { const o = q.options[k]; return `<label class="choice ${S.ans[i] === o.label ? 'sel' : ''}"><input type="radio" name="q${i}" value="${o.label}" ${S.ans[i] === o.label ? 'checked' : ''}><b>${letters[pos]}.</b><span>${esc(o.text)}</span></label>`; }).join('')}</div>`;
+  }
+  if (q.type === 'tf') {
+    const a = S.ans[i] || [null, null, null, null];
+    h += `<div>${q.statements.map((s, j) => `<div class="tfrow"><span>${s.label}) ${esc(s.text)}</span><span class="tfbtns"><button class="d" data-j="${j}" data-v="Đ" aria-pressed="${a[j] === 'Đ'}">Đúng</button><button class="s" data-j="${j}" data-v="S" aria-pressed="${a[j] === 'S'}">Sai</button></span></div>`).join('')}</div>`;
+  }
+  if (q.type === 'short') h += `<label class="note" for="sa">Nhập đáp số (dùng dấu phẩy hoặc dấu chấm):</label><input id="sa" class="short" inputmode="decimal" autocomplete="off" value="${esc(S.ans[i] ?? '')}" placeholder="Ví dụ: -2,5">`;
+  h += `</article>
+  <div class="nav"><button class="btn" id="prev" ${S.cur === 0 ? 'disabled' : ''}>← Câu trước</button>
+    ${S.cur < S.qs.length - 1 ? '<button class="btn primary" id="next">Câu sau →</button>' : '<button class="btn primary" id="submit">Nộp bài</button>'}</div>
+  <div class="panel"><div class="row"><b>Danh sách câu</b><span class="note">xanh = đã làm, chấm vàng = đánh dấu</span></div>
+    <div class="grid">${S.order.map((k, pos) => `<button data-pos="${pos}" class="${answered(k) ? 'done' : ''} ${pos === S.cur ? 'cur' : ''} ${S.flags[k] ? 'flag' : ''}" aria-label="Câu ${pos + 1}">${pos + 1}</button>`).join('')}</div>
+    <div class="row"><button class="btn" id="submit2">Nộp bài</button></div></div>`;
+  if (S.confirm) {
+    const left = S.qs.length - doneN;
+    h += `<div class="panel" style="border-color:var(--accent)"><b>Nộp bài?</b><span>${left ? `Còn <b>${left}</b> câu chưa làm. ` : 'Bạn đã làm hết các câu. '}Sau khi nộp sẽ không sửa được nữa.</span>
+      <div class="row"><button class="btn primary" id="yes">Nộp bài</button><button class="btn" id="no">Làm tiếp</button></div></div>`;
+  }
+  app.innerHTML = h;
+  tick();
+  paintSaved();
+  $('#shuf').onchange = (e) => { S.shuffle = e.target.checked; applyShuffle(); S.cur = 0; render(); };
+  $('#flag').onclick = () => { S.flags[i] = !S.flags[i]; render(); };
+  app.querySelectorAll('input[type=radio]').forEach((r) => (r.onchange = () => { S.ans[i] = r.value; save(); render(); }));
+  app.querySelectorAll('.tfbtns button').forEach((b) => (b.onclick = () => { const a = (S.ans[i] || [null, null, null, null]).slice(); a[+b.dataset.j] = b.dataset.v; S.ans[i] = a; save(); render(); }));
+  const sa = $('#sa'); if (sa) sa.oninput = () => { S.ans[i] = sa.value; save(); const p = $('.progress'); p.textContent = `Đã làm ${S.qs.filter((_, k) => answered(k)).length}/${S.qs.length}`; };
+  if (sa) sa.onchange = () => render();
+  $('#prev').onclick = () => { S.cur--; render(); };
+  const nx = $('#next'); if (nx) nx.onclick = () => { S.cur++; render(); };
+  app.querySelectorAll('.grid button').forEach((b) => (b.onclick = () => { S.cur = +b.dataset.pos; render(); }));
+  const askSubmit = () => { S.confirm = true; render(); const y = $('#yes'); y && y.scrollIntoView({ block: 'center' }); };
+  const sb = $('#submit'); if (sb) sb.onclick = askSubmit;
+  $('#submit2').onclick = askSubmit;
+  const y = $('#yes'); if (y) y.onclick = () => { S.done = true; S.confirm = false; render(); scrollTo(0, 0); };
+  const n = $('#no'); if (n) n.onclick = () => { S.confirm = false; render(); };
+}
+
+function renderResult() {
+  const g = grade();
+  let h = `<div class="panel"><span class="note">Kết quả (chế độ: xem điểm + đáp án)</span>
+    <div class="score">${g.ten.toFixed(2).replace('.', ',')}<span class="note" style="font-size:16px"> / 10</span></div>
+    <span class="note">Điểm thô ${g.raw.toFixed(2).replace('.', ',')} / ${g.max.toFixed(2).replace('.', ',')}, quy về thang 10. Rời tab ${S.leaves} lần (chỉ mang tính tham khảo).</span>
+    <div class="grid">${S.order.map((k, pos) => `<button class="${g.res[k] === 'right' ? 'right' : g.res[k] === 'wrong' ? 'wrong' : 'done'}" data-k="${k}" aria-label="Câu ${pos + 1}">${pos + 1}</button>`).join('')}</div>
+    <div class="row"><button class="btn" id="again">Làm lại (bản thử)</button></div></div>`;
+  S.order.forEach((k, pos) => {
+    const q = S.qs[k], a = S.ans[k];
+    h += `<article class="q" id="r${k}"><div class="qhead"><span class="qno">Câu ${pos + 1}</span><span class="pill ${g.res[k] === 'right' ? 'ok' : g.res[k] === 'wrong' ? 'bad' : 'warn'}">${g.res[k] === 'right' ? 'Đúng' : g.res[k] === 'wrong' ? 'Sai' : 'Đúng một phần'}</span></div>
+      <div class="stem">${esc(q.stem)}</div>`;
+    if (q.type === 'mcq') h += `<ul class="opts">${q.options.map((o) => `<li class="${q.answer === o.label ? 'correct' : ''}"><b>${o.label}.</b><span>${esc(o.text)}${a === o.label && a !== q.answer ? ' <em style="color:var(--bad)">(bạn chọn)</em>' : ''}</span></li>`).join('')}</ul>`;
+    if (q.type === 'tf') h += `<table class="tf"><tbody>${q.statements.map((s, j) => `<tr><td>${s.label}) ${esc(s.text)}<br><span class="note">Bạn chọn: ${a && a[j] ? (a[j] === 'Đ' ? 'Đúng' : 'Sai') : 'bỏ trống'}</span></td><td class="${q.answer[j]}">${q.answer[j] === 'Đ' ? 'Đúng' : 'Sai'}</td></tr>`).join('')}</tbody></table>`;
+    if (q.type === 'short') h += `<div>Bạn trả lời: <span class="ans">${esc(a || 'bỏ trống')}</span>. Đáp án: ${q.answer.map((x) => `<span class="ans">${esc(x)}</span>`).join(' hoặc ')}</div>`;
+    if (q.solution) h += `<details class="sol"><summary>Lời giải</summary><div>${esc(q.solution)}</div></details>`;
+    h += `</article>`;
+  });
+  app.innerHTML = h;
+  $('#again').onclick = () => { S = null; render(); };
+  app.querySelectorAll('.grid button').forEach((b) => (b.onclick = () => document.getElementById('r' + b.dataset.k).scrollIntoView({ block: 'start' })));
+}
+
+function tick() {
+  const el = $('#timer'); if (!el || !S || S.done) return;
+  const left = Math.max(0, S.deadline - Date.now());
+  const m = Math.floor(left / 60000), s = Math.floor((left % 60000) / 1000);
+  el.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  el.classList.toggle('low', left < 5 * 60000);
+  if (left === 0) { S.done = true; render(); }
+}
+setInterval(tick, 500);
+document.addEventListener('visibilitychange', () => { if (document.hidden && S && !S.done && mode === 'S') { S.leaves++; } else if (!document.hidden && mode === 'S' && S && !S.done) render(); });
+render();
+</script>

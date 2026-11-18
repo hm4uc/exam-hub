@@ -31,6 +31,7 @@ Bản spec MVP (`.scratch/exam-hub/spec.md`) gồm chức năng, mô hình dữ 
 - [Gửi 2–3 file đề thật (.docx) để thử phân giải](issues/09-gui-de-mau.md): có 1 đề mẫu, công thức viết bằng ký tự Unicode (không MathType), đáp án ở "BẢNG ĐÁP ÁN" và "Câu n: Đáp án X." trong lời giải.
 - [Tài khoản học sinh được tạo, đăng nhập và cấp lại mật khẩu thế nào?](issues/12-tai-khoan-hoc-sinh.md): học sinh tự đăng ký bằng tên đăng nhập (không email), giáo viên xếp lớp; giáo viên đặt lại mật khẩu tạm; giữ đăng nhập vĩnh viễn tới khi bấm Đăng xuất.
 - [Mẫu quy ước của file Word đề thi là gì?](issues/06-mau-de-word.md): đáp án từ bảng đáp án / "Đáp án X" / gạch chân-tô đỏ; Dạng câu nhận theo cấu trúc (A–D, a–d, không có gì); có lấy lời giải; ưu tiên công thức chữ thường, MathType/hình hiển thị dạng ảnh.
+- [Kiến trúc và mô hình dữ liệu MVP là gì?](issues/08-kien-truc-mo-hinh-du-lieu.md): Next.js 16 + Supabase + Tailwind v3; email nội bộ từ tên đăng nhập; học sinh chỉ thao tác qua hàm Postgres (không lộ đáp án, chấm trong DB); 6 bảng; phân giải trên trình duyệt; GitHub Actions sao lưu.
 
 ## Not yet specified
 

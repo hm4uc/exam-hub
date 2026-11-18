@@ -1,0 +1,289 @@
+<title>Exam Hub thử nghiệm</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: một cột kiểu tờ đề; thanh trên dính (chọn đề + chế độ); học sinh có thanh đồng hồ dính và lưới số câu. */
+:root {
+  --paper: #f7f8fb; --sheet: #ffffff; --ink: #1b2233; --muted: #5d6679; --line: #dde2ec;
+  --accent: #2346c4; --accent-soft: #e6ebfb; --ok: #157a4a; --ok-soft: #e2f4ea;
+  --bad: #b42318; --bad-soft: #fde8e6; --warn: #8a5a00; --warn-soft: #fff3d6;
+  --f-body: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #11141c; --sheet: #191d28; --ink: #e6e9f2; --muted: #9aa3b8; --line: #2c3243;
+  --accent: #8ea6ff; --accent-soft: #232c4d; --ok: #5fd39a; --ok-soft: #173326;
+  --bad: #ff8a80; --bad-soft: #3a1c1c; --warn: #f2c25b; --warn-soft: #362a12; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #11141c; --sheet: #191d28; --ink: #e6e9f2; --muted: #9aa3b8; --line: #2c3243;
+  --accent: #8ea6ff; --accent-soft: #232c4d; --ok: #5fd39a; --ok-soft: #173326;
+  --bad: #ff8a80; --bad-soft: #3a1c1c; --warn: #f2c25b; --warn-soft: #362a12; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--paper); color: var(--ink); font: 15px/1.55 var(--f-body); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--sheet) }
+.wrap { max-width: 760px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--sheet); border-bottom: 1px solid var(--line); }
+header.top .wrap { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding-block: 10px; }
+.brand { font-weight: 700; letter-spacing: -.01em; margin-right: auto }
+.brand small { font-weight: 500; color: var(--muted); margin-left: 6px }
+select, button, input { font: inherit; color: inherit }
+select { background: var(--sheet); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; max-width: 100% }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden }
+.seg button { border: 0; background: transparent; padding: 7px 12px; cursor: pointer; color: var(--muted); font-weight: 500 }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff }
+:root[data-theme="dark"] .seg button[aria-pressed="true"] { color: #0d1430 }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .seg button[aria-pressed="true"] { color: #0d1430 } }
+button:focus-visible, select:focus-visible, input:focus-visible, label:focus-within { outline: 2px solid var(--accent); outline-offset: 2px }
+main { padding-block: 18px 80px; display: grid; gap: 14px }
+.note { color: var(--muted); font-size: 13px }
+
+/* ---- giáo viên ---- */
+.summary { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; background: var(--accent-soft); color: var(--accent) }
+.pill.ok { background: var(--ok-soft); color: var(--ok) } .pill.bad { background: var(--bad-soft); color: var(--bad) } .pill.warn { background: var(--warn-soft); color: var(--warn) }
+.publish { margin-left: auto; border: 0; border-radius: 10px; padding: 8px 14px; font-weight: 600; background: var(--accent); color: #fff; cursor: pointer }
+.publish:disabled { background: var(--line); color: var(--muted); cursor: not-allowed }
+.q { background: var(--sheet); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0 }
+.q.has-err { border-color: var(--bad) }
+.qhead { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline }
+.qno { font-weight: 700 }
+.stem { white-space: pre-wrap; overflow-wrap: anywhere }
+.opts { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none }
+.opts li { display: flex; gap: 10px; padding: 6px 10px; border-radius: 8px; border: 1px solid transparent; overflow-wrap: anywhere }
+.opts li b { font-family: var(--f-mono); min-width: 1.4em }
+.opts li.correct { background: var(--ok-soft); border-color: var(--ok) }
+.tf { width: 100%; border-collapse: collapse; font-size: 14px }
+.tf td { padding: 6px 8px; border-top: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere }
+.tf td:last-child { text-align: right; white-space: nowrap; font-weight: 700 }
+.tf .Đ { color: var(--ok) } .tf .S { color: var(--bad) }
+.src { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--muted) }
+.src span { border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px }
+.src span code { font-family: var(--f-mono) }
+.err { background: var(--bad-soft); color: var(--bad); border-radius: 8px; padding: 8px 10px; font-size: 14px }
+.warnbox { background: var(--warn-soft); color: var(--warn); border-radius: 8px; padding: 8px 10px; font-size: 14px }
+details.sol summary { cursor: pointer; color: var(--accent); font-size: 14px; font-weight: 500 }
+details.sol div { white-space: pre-wrap; padding-top: 6px; font-size: 14px; color: var(--muted); overflow-wrap: anywhere }
+.ans { font-family: var(--f-mono); font-weight: 600 }
+
+/* ---- học sinh ---- */
+.examhead { position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--topH, 56px)); z-index: 4; background: var(--paper); padding-block: 8px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid var(--line) }
+.timer { font-family: var(--f-mono); font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums }
+.timer.low { color: var(--bad) }
+.saved { font-size: 13px; color: var(--muted); display: inline-flex; gap: 6px; align-items: center }
+.saved i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); display: inline-block }
+.saved.saving i { background: var(--warn) }
+.progress { margin-left: auto; font-size: 13px; color: var(--muted) }
+.choice { display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; background: var(--sheet); overflow-wrap: anywhere }
+.choice input { margin-top: 4px; accent-color: var(--accent); width: 18px; height: 18px; flex: none }
+.choice:has(input:checked) { border-color: var(--accent); background: var(--accent-soft) }
+.choice.sel { border-color: var(--accent); background: var(--accent-soft) }
+.choice b { font-family: var(--f-mono) }
+.tfrow { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line) }
+.tfrow > span { min-width: 0; overflow-wrap: anywhere }
+.tfbtns { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden }
+.tfbtns button { border: 0; background: var(--sheet); padding: 8px 14px; cursor: pointer; font-weight: 600; color: var(--muted) }
+.tfbtns button[aria-pressed="true"].d { background: var(--ok); color: #fff }
+.tfbtns button[aria-pressed="true"].s { background: var(--bad); color: #fff }
+.short { width: 100%; max-width: 240px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--sheet); font-family: var(--f-mono); font-size: 18px }
+.nav { display: flex; gap: 10px; justify-content: space-between }
+.btn { border: 1px solid var(--line); background: var(--sheet); border-radius: 10px; padding: 9px 14px; cursor: pointer; font-weight: 600 }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff }
+.btn:disabled { opacity: .45; cursor: default }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 6px }
+.grid button { aspect-ratio: 1; max-width: 100%; border: 1px solid var(--line); background: var(--sheet); border-radius: 8px; cursor: pointer; font-family: var(--f-mono); font-weight: 600; position: relative }
+.grid button.done { background: var(--accent-soft); border-color: var(--accent); color: var(--accent) }
+.grid button.cur { outline: 2px solid var(--ink); outline-offset: 1px }
+.grid button.flag::after { content: ""; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--warn) }
+.grid button.right { background: var(--ok-soft); border-color: var(--ok); color: var(--ok) }
+.grid button.wrong { background: var(--bad-soft); border-color: var(--bad); color: var(--bad) }
+.panel { background: var(--sheet); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 12px }
+.score { font-size: 44px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center }
+.flagbtn { border: 0; background: none; color: var(--warn); cursor: pointer; font-size: 13px; font-weight: 600; padding: 0 }
+.cfg { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted) }
+.cfg label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer }
+@media (prefers-reduced-motion: no-preference) { .choice, .grid button { transition: background .12s, border-color .12s } }
+</style>
+
+<header class="top" id="top">
+  <div class="wrap">
+    <div class="brand">Exam Hub <small>bản thử phân giải</small></div>
+    <select id="examSel" aria-label="Chọn đề"></select>
+    <div class="seg" role="group" aria-label="Chế độ">
+      <button id="mT" aria-pressed="true">Giáo viên xem trước</button>
+      <button id="mS" aria-pressed="false">Học sinh làm bài</button>
+    </div>
+  </div>
+</header>
+<main class="wrap" id="app"></main>
+
+<script>
+const EXAMS = [{"stats":{"omml":0,"ole":0,"images":0,"shapes":0},"errors":[],"questions":[{"n":1,"part":null,"stem":"Số nghiệm của phương trình sin x + √3 cos x = √2 trên đoạn [0; 2π] là:","options":[{"label":"A","text":"2","marked":false},{"label":"B","text":"3","marked":false},{"label":"C","text":"4","marked":false},{"label":"D","text":"1","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"A","lời giải":"A"},"answer":"A","solution":"\nChia cả hai vế cho 2: 1/2 sin x + √3/2 cos x = √2/2 <=> sin(x + π/3) = sin(π/4).\n+ Họ 1: x + π/3 = π/4 + k2π <=> x = -π/12 + k2π. Với x ∈ [0; 2π] => k = 1 => x = 23π/12.\n+ Họ 2: x + π/3 = 3π/4 + k2π <=> x = 5π/12 + k2π. Với x ∈ [0; 2π] => k = 0 => x = 5π/12.\nVậy phương trình có đúng 2 nghiệm trên đoạn [0; 2π]."},{"n":2,"part":null,"stem":"Nghiệm của phương trình cos 3x + sin 2x - sin 4x = 0 là:","options":[{"label":"A","text":"x = π/6 + kπ/3, k ∈ Z","marked":false},{"label":"B","text":"x = π/3 + kπ/3, k ∈ Z","marked":false},{"label":"C","text":"x = kπ/3, k ∈ Z","marked":false},{"label":"D","text":"x = π/6 + k2π, k ∈ Z","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"A","lời giải":"A"},"answer":"A","solution":"\nTa có: sin 2x - sin 4x = -2sin x cos 3x.\nPhương trình tương đương: cos 3x - 2sin x cos 3x = 0 <=> cos 3x (1 - 2sin x) = 0.\n+ Trường hợp 1: cos 3x = 0 <=> 3x = π/2 + kπ <=> x = π/6 + kπ/3.\n+ Trường hợp 2: sin x = 1/2 <=> x = π/6 + k2π hoặc x = 5π/6 + k2π.\nNhận thấy các nghiệm của trường hợp 2 đều nằm trong họ nghiệm x = π/6 + kπ/3 (với k = 0 và k = 2). Do đó, họ nghiệm tổng quát là x = π/6 + kπ/3 (k ∈ Z)."},{"n":3,"part":null,"stem":"Phương trình sin²x - 3sin x cos x + 2cos²x = 0 có các họ nghiệm là:","options":[{"label":"A","text":"x = -π/4 + kπ hoặc x = arctan(2) + kπ, k ∈ Z","marked":false},{"label":"B","text":"x = π/4 + kπ hoặc x = arctan(2) + kπ, k ∈ Z","marked":false},{"label":"C","text":"x = ±π/4 + kπ, k ∈ Z","marked":false},{"label":"D","text":"x = π/4 + k2π hoặc x = arctan(2) + k2π, k ∈ Z","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"B","lời giải":"B"},"answer":"B","solution":"\nXét cos x = 0 => sin²x = 0 (vô lý). Chia cả 2 vế cho cos²x ≠ 0 ta được:\ntan²x - 3tan x + 2 = 0 <=> tan x = 1 hoặc tan x = 2.\n<=> x = π/4 + kπ hoặc x = arctan(2) + kπ (k ∈ Z)."},{"n":4,"part":null,"stem":"Độ sâu h (mét) của mực nước biển tại một cảng biển vào thời điểm t giờ trong ngày (0 <= t <= 24) được tính theo công thức: h(t) = 5 + 3cos(π t / 12). Vào thời điểm nào lần thứ hai trong ngày mực nước đạt độ sâu 6,5 mét?","options":[{"label":"A","text":"20 giờ (t = 20)","marked":false},{"label":"B","text":"4 giờ (t = 4)","marked":false},{"label":"C","text":"8 giờ (t = 8)","marked":false},{"label":"D","text":"16 giờ (t = 16)","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"A","lời giải":"A"},"answer":"A","solution":"\nTa có: h(t) = 6,5 <=> 5 + 3cos(π t / 12) = 6,5 <=> 3cos(π t / 12) = 1,5 <=> cos(π t / 12) = 1/2.\n+ Họ 1: π t / 12 = π/3 + k2π <=> t = 4 + 24k. Với 0 <= t <= 24 => t = 4 (lần thứ nhất, lúc 4 giờ sáng).\n+ Họ 2: π t / 12 = -π/3 + k2π <=> t = -4 + 24k. Với 0 <= t <= 24 => k = 1 => t = 20 (lần thứ hai, lúc 20 giờ tối)."},{"n":5,"part":null,"stem":"Tìm tất cả các giá trị của tham số m để phương trình (m + 1)sin x - cos x = √5 có nghiệm.","options":[{"label":"A","text":"-3 <= m <= 1","marked":false},{"label":"B","text":"-5 <= m <= 5","marked":false},{"label":"C","text":"m >= 1 hoặc m <= -3","marked":false},{"label":"D","text":"m >= 1","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"C","lời giải":"C"},"answer":"C","solution":"\nPhương trình a.sin x + b.cos x = c có nghiệm <=> a² + b² >= c².\nÁp dụng: (m + 1)² + (-1)² >= (√5)² <=> (m + 1)² + 1 >= 5 <=> (m + 1)² >= 4.\n<=> m + 1 >= 2 hoặc m + 1 <= -2 <=> m >= 1 hoặc m <= -3."},{"n":6,"part":null,"stem":"Giải phương trình tan 2x = cot x.","options":[{"label":"A","text":"x = π/3 + kπ/3, k ∈ Z","marked":false},{"label":"B","text":"x = ±π/6 + kπ/3, k ∈ Z","marked":false},{"label":"C","text":"x = π/6 + kπ, k ∈ Z","marked":false},{"label":"D","text":"x = π/6 + kπ/3, k ∈ Z","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"D","lời giải":"D"},"answer":"D","solution":"\nĐiều kiện: cos 2x ≠ 0 và sin x ≠ 0.\nPhương trình <=> tan 2x = tan(π/2 - x) <=> 2x = π/2 - x + kπ <=> 3x = π/2 + kπ <=> x = π/6 + kπ/3.\nKiểm tra điều kiện: Các điểm ngọn của họ nghiệm x = π/6 + kπ/3 trên đường tròn lượng giác không trùng với các điểm làm cos 2x = 0 hay sin x = 0. Do đó nghiệm của phương trình là x = π/6 + kπ/3 (k ∈ Z)."},{"n":7,"part":null,"stem":"Giải phương trình cos 2x - 5sin x - 3 = 0.","options":[{"label":"A","text":"x = -π/6 + kπ, k ∈ Z","marked":false},{"label":"B","text":"x = π/6 + k2π hoặc x = 5π/6 + k2π, k ∈ Z","marked":false},{"label":"C","text":"x = ±π/6 + k2π, k ∈ Z","marked":false},{"label":"D","text":"x = -π/6 + k2π hoặc x = 7π/6 + k2π, k ∈ Z","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"D","lời giải":"D"},"answer":"D","solution":"\nÁp dụng công thức nhân đôi: cos 2x = 1 - 2sin²x.\nPhương trình trở thành: (1 - 2sin²x) - 5sin x - 3 = 0 <=> -2sin²x - 5sin x - 2 = 0 <=> 2sin²x + 5sin x + 2 = 0.\n<=> sin x = -1/2 hoặc sin x = -2 (loại vì -1 <= sin x <= 1).\nVới sin x = -1/2 <=> x = -π/6 + k2π hoặc x = 7π/6 + k2π (k ∈ Z)."},{"n":8,"part":null,"stem":"Tổng các nghiệm của phương trình sin 2x + 2cos x = 0 trên đoạn [0; 2π] là:","options":[{"label":"A","text":"2π","marked":false},{"label":"B","text":"3π","marked":false},{"label":"C","text":"4π","marked":false},{"label":"D","text":"π","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"A","lời giải":"A"},"answer":"A","solution":"\nsin 2x + 2cos x = 0 <=> 2sin x cos x + 2cos x = 0 <=> 2cos x (sin x + 1) = 0.\n+ cos x = 0 <=> x = π/2 + kπ. Trên [0; 2π] có 2 nghiệm: x = π/2 và x = 3π/2.\n+ sin x = -1 <=> x = -π/2 + k2π = 3π/2 + k2π. Trên [0; 2π] có 1 nghiệm là x = 3π/2 (đã trùng với nghiệm ở trên).\nVậy phương trình có 2 nghiệm phân biệt trên [0; 2π] là π/2 và 3π/2.\nTổng các nghiệm là: π/2 + 3π/2 = 2π."},{"n":9,"part":null,"stem":"Nghiệm của phương trình 1 + sin 2x = sin x + cos x là:","options":[{"label":"A","text":"x = π/4 + kπ, x = k2π hoặc x = π/2 + k2π, k ∈ Z","marked":false},{"label":"B","text":"x = ±π/4 + kπ, k ∈ Z","marked":false},{"label":"C","text":"x = -π/4 + k2π hoặc x = k2π, k ∈ Z","marked":false},{"label":"D","text":"x = -π/4 + kπ, x = k2π hoặc x = π/2 + k2π, k ∈ Z","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"D","lời giải":"D"},"answer":"D","solution":"\nĐặt t = sin x + cos x (-√2 <= t <= √2) => t² = 1 + sin 2x.\nPhương trình trở thành: t² = t <=> t² - t = 0 <=> t = 0 hoặc t = 1 (đều thỏa mãn).\n+ Với t = 0 <=> √2 sin(x + π/4) = 0 <=> x + π/4 = kπ <=> x = -π/4 + kπ.\n+ Với t = 1 <=> √2 sin(x + π/4) = 1 <=> sin(x + π/4) = √2/2\n<=> x + π/4 = π/4 + k2π hoặc x + π/4 = 3π/4 + k2π <=> x = k2π hoặc x = π/2 + k2π."},{"n":10,"part":null,"stem":"Một chất điểm dao động điều hòa có phương trình vận tốc v(t) = 20π cos(2π t + π/6) (cm/s), với t là thời gian tính bằng giây (t >= 0). Trong 2 giây đầu tiên (0 <= t <= 2), có bao nhiêu lần vận tốc của chất điểm đạt giá trị 10π√3 cm/s?","options":[{"label":"A","text":"4 lần","marked":false},{"label":"B","text":"5 lần","marked":false},{"label":"C","text":"6 lần","marked":false},{"label":"D","text":"3 lần","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"B","lời giải":"B"},"answer":"B","solution":"\nTa có: 20π cos(2π t + π/6) = 10π√3 <=> cos(2π t + π/6) = √3/2 = cos(π/6).\n+ Họ 1: 2π t + π/6 = π/6 + k2π <=> 2π t = k2π <=> t = k.\nVì 0 <= t <= 2 nên k ∈ {0; 1; 2} => t ∈ {0; 1; 2} (3 thời điểm).\n+ Họ 2: 2π t + π/6 = -π/6 + k2π <=> 2π t = -π/3 + k2π <=> t = -1/6 + k.\nVì 0 <= t <= 2 nên 0 <= -1/6 + k <= 2 <=> 1/6 <= k <= 13/6 => k ∈ {1; 2} => t ∈ {5/6; 11/6} (2 thời điểm).\nCác thời điểm tìm được đều phân biệt, do đó có tất cả 3 + 2 = 5 lần."}],"title":"Phương trình lượng giác 11 (10 câu)","file":"De_PTLG_11_10Cau_TB_TBK.docx"},{"stats":{"omml":0,"ole":0,"images":0,"shapes":0},"errors":[],"questions":[{"n":1,"part":null,"stem":"Kết quả của phép tính 2/5 + 3/10 là:","options":[{"label":"A","text":"5/15","marked":false},{"label":"B","text":"1/2","marked":false},{"label":"C","text":"5/10","marked":false},{"label":"D","text":"7/10","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"D","lời giải":"D"},"answer":"D","solution":"\nQuy đồng mẫu số: 2/5 = 4/10. Vậy 4/10 + 3/10 = 7/10."},{"n":2,"part":null,"stem":"Kết quả của phép tính 7/8 - 1/4 là:","options":[{"label":"A","text":"6/4","marked":false},{"label":"B","text":"9/8","marked":false},{"label":"C","text":"5/8","marked":false},{"label":"D","text":"3/8","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"C","lời giải":"C"},"answer":"C","solution":"\nQuy đồng mẫu số: 1/4 = 2/8. Vậy 7/8 - 2/8 = 5/8."},{"n":3,"part":null,"stem":"Phép tính 3/4 × 5/9 có kết quả rút gọn là:","options":[{"label":"A","text":"27/20","marked":false},{"label":"B","text":"15/36","marked":false},{"label":"C","text":"5/12","marked":false},{"label":"D","text":"8/13","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"C","lời giải":"C"},"answer":"C","solution":"\nNhân tử với tử, mẫu với mẫu: (3 × 5) / (4 × 9) = 15/36. Rút gọn chia cả tử và mẫu cho 3 ta được 5/12."},{"n":4,"part":null,"stem":"Phép tính 5/6 : 2/3 có kết quả là:","options":[{"label":"A","text":"5/4","marked":false},{"label":"B","text":"5/9","marked":false},{"label":"C","text":"10/18","marked":false},{"label":"D","text":"7/9","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"A","lời giải":"A"},"answer":"A","solution":"\nChia hai phân số ta nhân phân số thứ nhất với phân số thứ hai đảo ngược: 5/6 × 3/2 = 15/12. Rút gọn cho 3 ta được 5/4."},{"n":5,"part":null,"stem":"Tìm x, biết: x + 1/3 = 5/6","options":[{"label":"A","text":"x = 1/2","marked":false},{"label":"B","text":"x = 1/6","marked":false},{"label":"C","text":"x = 7/6","marked":false},{"label":"D","text":"x = 2/3","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"A","lời giải":"A"},"answer":"A","solution":"\nx = 5/6 - 1/3 = 5/6 - 2/6 = 3/6 = 1/2."},{"n":6,"part":null,"stem":"Tìm x, biết: x - 3/5 = 1/2","options":[{"label":"A","text":"x = 11/10","marked":false},{"label":"B","text":"x = 1/10","marked":false},{"label":"C","text":"x = 10/11","marked":false},{"label":"D","text":"x = 4/7","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"A","lời giải":"A"},"answer":"A","solution":"\nx = 1/2 + 3/5. Quy đồng mẫu chung 10: x = 5/10 + 6/10 = 11/10."},{"n":7,"part":null,"stem":"Tìm x, biết: 4/7 × x = 8/21","options":[{"label":"A","text":"x = 12/28","marked":false},{"label":"B","text":"x = 3/2","marked":false},{"label":"C","text":"x = 32/147","marked":false},{"label":"D","text":"x = 2/3","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"D","lời giải":"D"},"answer":"D","solution":"\nx = 8/21 : 4/7 = 8/21 × 7/4 = (8 × 7) / (21 × 4) = 56/84. Rút gọn cho 28 ta được 2/3."},{"n":8,"part":null,"stem":"Tìm x, biết: x : 3/4 = 8/9","options":[{"label":"A","text":"x = 32/27","marked":false},{"label":"B","text":"x = 3/2","marked":false},{"label":"C","text":"x = 6/7","marked":false},{"label":"D","text":"x = 2/3","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"D","lời giải":"D"},"answer":"D","solution":"\nx = 8/9 × 3/4 = 24/36. Rút gọn chia cho 12 ta được x = 2/3."},{"n":9,"part":null,"stem":"Tìm x, biết: 5/8 - x = 1/4","options":[{"label":"A","text":"x = 7/8","marked":false},{"label":"B","text":"x = 1/2","marked":false},{"label":"C","text":"x = 3/8","marked":false},{"label":"D","text":"x = 1","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"C","lời giải":"C"},"answer":"C","solution":"\nx = 5/8 - 1/4 = 5/8 - 2/8 = 3/8."},{"n":10,"part":null,"stem":"Tính bằng cách thuận tiện: 2/7 × 3/5 + 2/7 × 2/5 = ?","options":[{"label":"A","text":"4/7","marked":false},{"label":"B","text":"2/5","marked":false},{"label":"C","text":"2/7","marked":false},{"label":"D","text":"1","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"C","lời giải":"C"},"answer":"C","solution":"\nSử dụng tính chất phân phối: 2/7 × (3/5 + 2/5) = 2/7 × 5/5 = 2/7 × 1 = 2/7."},{"n":11,"part":null,"stem":"Tính bằng cách thuận tiện: 13/15 × 7/9 - 13/15 × 2/9 = ?","options":[{"label":"A","text":"13/15","marked":false},{"label":"B","text":"5/9","marked":false},{"label":"C","text":"13/27","marked":false},{"label":"D","text":"65/135","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"C","lời giải":"C"},"answer":"C","solution":"\nSử dụng tính chất phân phối: 13/15 × (7/9 - 2/9) = 13/15 × 5/9 = (13 × 5) / (15 × 9). Rút gọn chéo 5 với 15 ta được 13/27."},{"n":12,"part":null,"stem":"Tính nhanh tổng sau: 1/2 + 1/4 + 1/8 + 1/16 = ?","options":[{"label":"A","text":"17/16","marked":false},{"label":"B","text":"15/16","marked":false},{"label":"C","text":"7/8","marked":false},{"label":"D","text":"1/16","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"B","lời giải":"B"},"answer":"B","solution":"\nTa thấy 1/2 = 1 - 1/2; 1/4 = 1/2 - 1/4; 1/8 = 1/4 - 1/8; 1/16 = 1/8 - 1/16. Cộng vế theo vế triệt tiêu dần, kết quả là 1 - 1/16 = 15/16."},{"n":13,"part":null,"stem":"Một lớp có 40 học sinh, trong đó 3/5 số học sinh là nữ. Số học sinh nam của lớp đó là:","options":[{"label":"A","text":"25 học sinh","marked":false},{"label":"B","text":"16 học sinh","marked":false},{"label":"C","text":"24 học sinh","marked":false},{"label":"D","text":"15 học sinh","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"B","lời giải":"B"},"answer":"B","solution":"\nSố học sinh nữ là: 40 × 3/5 = 24 (học sinh). Số học sinh nam là: 40 - 24 = 16 (học sinh)."},{"n":14,"part":null,"stem":"Một mảnh đất hình chữ nhật có chiều dài 4/5 m, chiều rộng 3/4 m. Diện tích mảnh đất đó là:","options":[{"label":"A","text":"31/20 m²","marked":false},{"label":"B","text":"7/9 m²","marked":false},{"label":"C","text":"12/20 m²","marked":false},{"label":"D","text":"3/5 m²","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"D","lời giải":"D"},"answer":"D","solution":"\nDiện tích = Chiều dài × Chiều rộng = 4/5 × 3/4 = 12/20 = 3/5 (m²)."},{"n":15,"part":null,"stem":"Có một tấm vải dài 36m. Lần đầu người thợ cắt 1/3 tấm vải, lần hai cắt 1/4 tấm vải CÒN LẠI. Hỏi sau hai lần cắt, tấm vải còn lại bao nhiêu mét?","options":[{"label":"A","text":"24m","marked":false},{"label":"B","text":"18m","marked":false},{"label":"C","text":"15m","marked":false},{"label":"D","text":"21m","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"B","lời giải":"B"},"answer":"B","solution":"\nLần 1 cắt: 36 × 1/3 = 12 (m). Tấm vải còn lại sau lần 1: 36 - 12 = 24 (m). Lần 2 cắt: 24 × 1/4 = 6 (m). Số vải còn lại sau cùng: 24 - 6 = 18 (m)."},{"n":16,"part":null,"stem":"Tìm một số biết 2/3 của số đó bằng 24. Số đó là:","options":[{"label":"A","text":"48","marked":false},{"label":"B","text":"36","marked":false},{"label":"C","text":"12","marked":false},{"label":"D","text":"16","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"B","lời giải":"B"},"answer":"B","solution":"\nMuốn tìm một số khi biết 2/3 của nó bằng 24, ta lấy 24 : 2/3 = 24 × 3/2 = 36."},{"n":17,"part":null,"stem":"Một vòi nước chảy vào bể. Giờ thứ nhất chảy được 1/3 bể, giờ thứ hai chảy được 2/5 bể. Hỏi vòi nước còn phải chảy bao nhiêu phần bể nữa mới đầy?","options":[{"label":"A","text":"7/15 bể","marked":false},{"label":"B","text":"2/15 bể","marked":false},{"label":"C","text":"4/15 bể","marked":false},{"label":"D","text":"11/15 bể","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"C","lời giải":"C"},"answer":"C","solution":"\nHai giờ vòi chảy được: 1/3 + 2/5 = 5/15 + 6/15 = 11/15 (bể). Số phần bể cần chảy thêm để đầy là: 1 - 11/15 = 4/15 (bể)."},{"n":18,"part":null,"stem":"Tính nhanh giá trị của biểu thức: 1/(2×3) + 1/(3×4) + 1/(4×5) + ... + 1/(9×10)","options":[{"label":"A","text":"1/5","marked":false},{"label":"B","text":"2/5","marked":false},{"label":"C","text":"9/10","marked":false},{"label":"D","text":"4/10","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"B","lời giải":"B"},"answer":"B","solution":"\nBiểu thức = 1/2 - 1/3 + 1/3 - 1/4 + 1/4 - 1/5 + ... + 1/9 - 1/10 = 1/2 - 1/10 = 5/10 - 1/10 = 4/10 = 2/5."},{"n":19,"part":null,"stem":"Ba người thợ cùng làm một công việc. Người thứ nhất làm một mình xong trong 4 giờ. Người thứ hai làm một mình xong trong 6 giờ. Người thứ ba làm một mình xong trong 12 giờ. Nếu cả ba người cùng làm chung thì sau bao lâu sẽ xong công việc?","options":[{"label":"A","text":"3 giờ","marked":false},{"label":"B","text":"2 giờ","marked":false},{"label":"C","text":"22 giờ","marked":false},{"label":"D","text":"1 giờ","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"B","lời giải":"B"},"answer":"B","solution":"\nTrong 1 giờ: Người 1 làm được 1/4 việc, Người 2 làm 1/6 việc, Người 3 làm 1/12 việc. Trong 1 giờ cả ba người làm được: 1/4 + 1/6 + 1/12 = 3/12 + 2/12 + 1/12 = 6/12 = 1/2 (công việc). Cả 3 người cùng làm xong trong: 1 : 1/2 = 2 (giờ)."},{"n":20,"part":null,"stem":"Phân số a/b sau khi rút gọn được phân số 3/4. Biết tổng của tử số và mẫu số ban đầu là 35. Tìm phân số a/b ban đầu.","options":[{"label":"A","text":"12/16","marked":false},{"label":"B","text":"15/20","marked":false},{"label":"C","text":"20/15","marked":false},{"label":"D","text":"21/28","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"B","lời giải":"B"},"answer":"B","solution":"\nCoi tử số là 3 phần bằng nhau, mẫu số là 4 phần bằng nhau. Tổng số phần bằng nhau: 3 + 4 = 7 (phần). Giá trị 1 phần: 35 : 7 = 5. Tử số ban đầu a = 5 × 3 = 15. Mẫu số ban đầu b = 5 × 4 = 20. Phân số cần tìm là 15/20."}],"title":"Chuyên đề Phân số (20 câu)","file":"Bo_de_Phan_So_20Cau.docx"},{"stats":{"omml":0,"ole":0,"images":0,"shapes":0},"errors":[],"questions":[{"n":1,"part":"I","stem":"Giá trị của sin(π/6) là:","options":[{"label":"A","text":"√3/2","marked":false},{"label":"B","text":"1/2","marked":true},{"label":"C","text":"√2/2","marked":false},{"label":"D","text":"1","marked":false}],"statements":[],"errors":[],"warnings":[],"type":"mcq","sources":{"gạch chân":"B","bảng đáp án":"B","lời giải":"B"},"answer":"B","solution":"sin(π/6) = 1/2."},{"n":2,"part":"I","stem":"Nghiệm của phương trình 2x - 4 = 0 là:","options":[{"label":"A","text":"x = 1","marked":false},{"label":"B","text":"x = 2","marked":false},{"label":"C","text":"x = -2","marked":false},{"label":"D","text":"x = 4","marked":false}],"statements":[],"errors":["Đáp án mâu thuẫn: bảng đáp án = B; lời giải = C"],"warnings":[],"type":"mcq","sources":{"bảng đáp án":"B","lời giải":"C"},"solution":"2x = 4 ⇔ x = 2."},{"n":3,"part":"II","stem":"Cho hàm số f(x) = x² - 4x + 3. Xét tính đúng sai của các mệnh đề sau:","options":[],"statements":[{"label":"a","text":"f(1) = 0","marked":true},{"label":"b","text":"f(x) đồng biến trên ℝ","marked":false},{"label":"c","text":"Đồ thị cắt trục tung tại điểm (0; 3)","marked":true},{"label":"d","text":"f(x) đạt giá trị nhỏ nhất bằng 1","marked":false}],"errors":[],"warnings":[],"type":"tf","sources":{"gạch chân":"ĐSĐS","bảng đáp án":"ĐSĐS"},"answer":"ĐSĐS","solution":null},{"n":4,"part":"II","stem":"Cho cấp số cộng (uₙ) có u₁ = 2, công sai d = 3. Khi đó:","options":[],"statements":[{"label":"a","text":"u₂ = 5","marked":false},{"label":"b","text":"u₅ = 15","marked":false},{"label":"c","text":"Tổng 3 số hạng đầu bằng 15","marked":false},{"label":"d","text":"uₙ = 3n - 1","marked":true}],"errors":["Đáp án mâu thuẫn: gạch chân = SSSĐ; bảng đáp án = ĐSĐĐ"],"warnings":[],"type":"tf","sources":{"gạch chân":"SSSĐ","bảng đáp án":"ĐSĐĐ"},"solution":null},{"n":5,"part":"III","stem":"Tính giá trị của 1/3 (làm tròn đến hàng phần trăm).","options":[],"statements":[],"errors":[],"warnings":[],"type":"short","sources":{"bảng đáp án":"0,33|0,3"},"answer":["0,33","0,3"],"solution":null},{"n":6,"part":"III","stem":"Tìm x biết 2x + 5 = 0.","options":[],"statements":[],"errors":[],"warnings":[],"type":"short","sources":{"lời giải":"-2,5"},"answer":["-2,5"],"solution":"2x = -5 ⇔ x = -2,5."},{"n":7,"part":"III","stem":"Tính 0,5 + 0,25.","options":[],"statements":[],"errors":["Không tìm thấy đáp án (bảng đáp án / \"Đáp án …\" trong lời giải / gạch chân)"],"warnings":[],"type":"short","sources":{},"solution":null}],"title":"Đề tổng hợp 3 dạng (thử lỗi)","file":"De_TongHop_3Dang_ThuParser.docx"}];
+const POINTS = { mcq: 0.25, tf: 1, short: 0.5 };
+const TF_SCALE = [0, 0.1, 0.25, 0.5, 1];
+const TYPE_NAME = { mcq: 'Trắc nghiệm', tf: 'Đúng/Sai', short: 'Trả lời ngắn' };
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const app = $('#app');
+let examIdx = 0, mode = 'T', S = null;
+
+EXAMS.forEach((e, i) => $('#examSel').add(new Option(e.title, i)));
+$('#examSel').onchange = (e) => { examIdx = +e.target.value; S = null; render(); };
+$('#mT').onclick = () => setMode('T');
+$('#mS').onclick = () => setMode('S');
+function setMode(m) { mode = m; $('#mT').setAttribute('aria-pressed', m === 'T'); $('#mS').setAttribute('aria-pressed', m === 'S'); render(); }
+const setTopH = () => document.documentElement.style.setProperty('--topH', $('#top').offsetHeight + 'px');
+addEventListener('resize', setTopH);
+
+function render() { setTopH(); mode === 'T' ? renderTeacher() : renderStudent(); }
+
+/* ---------- Giáo viên: màn xem trước sau phân giải ---------- */
+function renderTeacher() {
+  const ex = EXAMS[examIdx];
+  const errQ = ex.questions.filter((q) => q.errors.length).length;
+  const counts = { mcq: 0, tf: 0, short: 0 };
+  ex.questions.forEach((q) => counts[q.type]++);
+  const errs = ex.errors.length + errQ;
+  let h = `<div class="summary">
+    <span class="pill">${ex.questions.length} câu</span>
+    ${Object.entries(counts).filter(([, n]) => n).map(([t, n]) => `<span class="pill" style="background:transparent;border:1px solid var(--line);color:var(--muted)">${TYPE_NAME[t]}: ${n}</span>`).join('')}
+    ${errs ? `<span class="pill bad">${errQ} câu cần sửa</span>` : `<span class="pill ok">Đủ đáp án, không lỗi</span>`}
+    <button class="publish" ${errs ? 'disabled title="Sửa hết các câu báo đỏ để xuất bản"' : ''}>Xuất bản đề</button>
+  </div>
+  <p class="note">File: <code>${esc(ex.file)}</code>. Công thức trong file: ${ex.stats.omml} Equation, ${ex.stats.ole} MathType, ${ex.stats.images} hình.</p>`;
+  h += ex.errors.map((e) => `<div class="err">${esc(e)}</div>`).join('');
+  for (const q of ex.questions) {
+    h += `<article class="q ${q.errors.length ? 'has-err' : ''}">
+      <div class="qhead"><span class="qno">Câu ${q.n}</span><span class="pill">${TYPE_NAME[q.type]}</span>${q.part ? `<span class="note">Phần ${esc(q.part)}</span>` : ''}</div>
+      <div class="stem">${esc(q.stem)}</div>`;
+    if (q.type === 'mcq') h += `<ul class="opts">${q.options.map((o) => `<li class="${q.answer === o.label ? 'correct' : ''}"><b>${o.label}.</b><span>${esc(o.text)}</span></li>`).join('')}</ul>`;
+    if (q.type === 'tf') h += `<table class="tf"><tbody>${q.statements.map((s, i) => { const v = q.answer ? q.answer[i] : '?'; return `<tr><td>${s.label}) ${esc(s.text)}</td><td class="${v}">${v === 'Đ' ? 'Đúng' : v === 'S' ? 'Sai' : '?'}</td></tr>`; }).join('')}</tbody></table>`;
+    if (q.type === 'short') h += `<div>Đáp án chấp nhận: ${q.answer ? q.answer.map((a) => `<span class="ans">${esc(a)}</span>`).join(' hoặc ') : '<span class="ans">?</span>'}</div>`;
+    const src = Object.entries(q.sources);
+    if (src.length) h += `<div class="src">Đáp án lấy từ: ${src.map(([k, v]) => `<span>${esc(k)}: <code>${esc(v)}</code></span>`).join('')}</div>`;
+    h += q.errors.map((e) => `<div class="err">${esc(e)}</div>`).join('');
+    h += q.warnings.map((e) => `<div class="warnbox">${esc(e)}</div>`).join('');
+    if (q.solution) h += `<details class="sol"><summary>Lời giải</summary><div>${esc(q.solution)}</div></details>`;
+    h += `</article>`;
+  }
+  app.innerHTML = h;
+}
+
+/* ---------- Học sinh: màn làm bài ---------- */
+function shuffle(a, seed) { a = a.slice(); let s = seed; for (let i = a.length - 1; i > 0; i--) { s = (s * 9301 + 49297) % 233280; const j = Math.floor((s / 233280) * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function newSession() {
+  const ex = EXAMS[examIdx];
+  const qs = ex.questions.filter((q) => q.answer);
+  const mins = Math.max(5, Math.round(qs.length * 1.5));
+  return { qs, order: qs.map((_, i) => i), optOrder: {}, cur: 0, ans: {}, flags: {}, deadline: Date.now() + mins * 60000, mins, leaves: 0, done: false, shuffle: false, confirm: false, saving: false, skipped: ex.questions.length - qs.length };
+}
+function applyShuffle() {
+  const seed = 1234;
+  S.order = S.shuffle ? shuffle(S.qs.map((_, i) => i), seed) : S.qs.map((_, i) => i);
+  S.optOrder = {};
+  S.qs.forEach((q, i) => { if (q.type === 'mcq') S.optOrder[i] = S.shuffle ? shuffle([0, 1, 2, 3].slice(0, q.options.length), seed + i) : q.options.map((_, k) => k); });
+}
+function answered(i) { const a = S.ans[i], q = S.qs[i]; if (a == null) return false; if (q.type === 'tf') return a.every((x) => x); return a !== ''; }
+function save() { S.saving = true; paintSaved(); clearTimeout(save.t); save.t = setTimeout(() => { S.saving = false; paintSaved(); }, 450); }
+function paintSaved() { const el = $('#saved'); if (el) { el.className = 'saved' + (S.saving ? ' saving' : ''); el.lastChild.textContent = S.saving ? ' Đang lưu…' : ' Đã lưu'; } }
+
+function grade() {
+  let got = 0, max = 0; const res = {};
+  S.qs.forEach((q, i) => {
+    const a = S.ans[i]; max += POINTS[q.type];
+    let pts = 0;
+    if (q.type === 'mcq') pts = a === q.answer ? POINTS.mcq : 0;
+    if (q.type === 'tf') { const k = a ? a.filter((x, j) => x === q.answer[j]).length : 0; pts = TF_SCALE[k] * POINTS.tf; }
+    if (q.type === 'short') { const n = (s) => { const t = String(s ?? '').trim().replace(',', '.'); return /^-?\d*\.?\d+$/.test(t) ? Number(t) : NaN; }; pts = q.answer.some((x) => n(x) === n(a)) ? POINTS.short : 0; }
+    got += pts; res[i] = pts === POINTS[q.type] ? 'right' : pts > 0 ? 'part' : 'wrong';
+  });
+  return { raw: got, max, ten: max ? (got / max) * 10 : 0, res };
+}
+
+function renderStudent() {
+  if (!S) { S = newSession(); applyShuffle(); }
+  if (S.done) return renderResult();
+  const i = S.order[S.cur], q = S.qs[i];
+  const doneN = S.qs.filter((_, k) => answered(k)).length;
+  let h = `<div class="examhead"><span class="timer" id="timer">--:--</span>
+    <span class="saved" id="saved"><i></i> Đã lưu</span>
+    <span class="progress">Đã làm ${doneN}/${S.qs.length}</span></div>`;
+  if (S.skipped) h += `<div class="warnbox">Bỏ ${S.skipped} câu chưa có đáp án (đề này có lỗi nên ngoài thực tế chưa xuất bản được).</div>`;
+  h += `<div class="cfg"><label><input type="checkbox" id="shuf" ${S.shuffle ? 'checked' : ''}> Đảo câu và phương án (mỗi học sinh một thứ tự)</label><span>Rời tab: ${S.leaves} lần</span></div>`;
+  h += `<article class="q"><div class="qhead"><span class="qno">Câu ${S.cur + 1}</span><span class="pill">${TYPE_NAME[q.type]}</span>
+      <button class="flagbtn" id="flag" style="margin-left:auto">${S.flags[i] ? '★ Bỏ đánh dấu' : '☆ Đánh dấu xem lại'}</button></div>
+    <div class="stem">${esc(q.stem)}</div>`;
+  if (q.type === 'mcq') {
+    const letters = 'ABCD';
+    h += `<div class="opts" role="radiogroup">${S.optOrder[i].map((k, pos) => { const o = q.options[k]; return `<label class="choice ${S.ans[i] === o.label ? 'sel' : ''}"><input type="radio" name="q${i}" value="${o.label}" ${S.ans[i] === o.label ? 'checked' : ''}><b>${letters[pos]}.</b><span>${esc(o.text)}</span></label>`; }).join('')}</div>`;
+  }
+  if (q.type === 'tf') {
+    const a = S.ans[i] || [null, null, null, null];
+    h += `<div>${q.statements.map((s, j) => `<div class="tfrow"><span>${s.label}) ${esc(s.text)}</span><span class="tfbtns"><button class="d" data-j="${j}" data-v="Đ" aria-pressed="${a[j] === 'Đ'}">Đúng</button><button class="s" data-j="${j}" data-v="S" aria-pressed="${a[j] === 'S'}">Sai</button></span></div>`).join('')}</div>`;
+  }
+  if (q.type === 'short') h += `<label class="note" for="sa">Nhập đáp số (dùng dấu phẩy hoặc dấu chấm):</label><input id="sa" class="short" inputmode="decimal" autocomplete="off" value="${esc(S.ans[i] ?? '')}" placeholder="Ví dụ: -2,5">`;
+  h += `</article>
+  <div class="nav"><button class="btn" id="prev" ${S.cur === 0 ? 'disabled' : ''}>← Câu trước</button>
+    ${S.cur < S.qs.length - 1 ? '<button class="btn primary" id="next">Câu sau →</button>' : '<button class="btn primary" id="submit">Nộp bài</button>'}</div>
+  <div class="panel"><div class="row"><b>Danh sách câu</b><span class="note">xanh = đã làm, chấm vàng = đánh dấu</span></div>
+    <div class="grid">${S.order.map((k, pos) => `<button data-pos="${pos}" class="${answered(k) ? 'done' : ''} ${pos === S.cur ? 'cur' : ''} ${S.flags[k] ? 'flag' : ''}" aria-label="Câu ${pos + 1}">${pos + 1}</button>`).join('')}</div>
+    <div class="row"><button class="btn" id="submit2">Nộp bài</button></div></div>`;
+  if (S.confirm) {
+    const left = S.qs.length - doneN;
+    h += `<div class="panel" style="border-color:var(--accent)"><b>Nộp bài?</b><span>${left ? `Còn <b>${left}</b> câu chưa làm. ` : 'Bạn đã làm hết các câu. '}Sau khi nộp sẽ không sửa được nữa.</span>
+      <div class="row"><button class="btn primary" id="yes">Nộp bài</button><button class="btn" id="no">Làm tiếp</button></div></div>`;
+  }
+  app.innerHTML = h;
+  tick();
+  paintSaved();
+  $('#shuf').onchange = (e) => { S.shuffle = e.target.checked; applyShuffle(); S.cur = 0; render(); };
+  $('#flag').onclick = () => { S.flags[i] = !S.flags[i]; render(); };
+  app.querySelectorAll('input[type=radio]').forEach((r) => (r.onchange = () => { S.ans[i] = r.value; save(); render(); }));
+  app.querySelectorAll('.tfbtns button').forEach((b) => (b.onclick = () => { const a = (S.ans[i] || [null, null, null, null]).slice(); a[+b.dataset.j] = b.dataset.v; S.ans[i] = a; save(); render(); }));
+  const sa = $('#sa'); if (sa) sa.oninput = () => { S.ans[i] = sa.value; save(); const p = $('.progress'); p.textContent = `Đã làm ${S.qs.filter((_, k) => answered(k)).length}/${S.qs.length}`; };
+  if (sa) sa.onchange = () => render();
+  $('#prev').onclick = () => { S.cur--; render(); };
+  const nx = $('#next'); if (nx) nx.onclick = () => { S.cur++; render(); };
+  app.querySelectorAll('.grid button').forEach((b) => (b.onclick = () => { S.cur = +b.dataset.pos; render(); }));
+  const askSubmit = () => { S.confirm = true; render(); const y = $('#yes'); y && y.scrollIntoView({ block: 'center' }); };
+  const sb = $('#submit'); if (sb) sb.onclick = askSubmit;
+  $('#submit2').onclick = askSubmit;
+  const y = $('#yes'); if (y) y.onclick = () => { S.done = true; S.confirm = false; render(); scrollTo(0, 0); };
+  const n = $('#no'); if (n) n.onclick = () => { S.confirm = false; render(); };
+}
+
+function renderResult() {
+  const g = grade();
+  let h = `<div class="panel"><span class="note">Kết quả (chế độ: xem điểm + đáp án)</span>
+    <div class="score">${g.ten.toFixed(2).replace('.', ',')}<span class="note" style="font-size:16px"> / 10</span></div>
+    <span class="note">Điểm thô ${g.raw.toFixed(2).replace('.', ',')} / ${g.max.toFixed(2).replace('.', ',')}, quy về thang 10. Rời tab ${S.leaves} lần (chỉ mang tính tham khảo).</span>
+    <div class="grid">${S.order.map((k, pos) => `<button class="${g.res[k] === 'right' ? 'right' : g.res[k] === 'wrong' ? 'wrong' : 'done'}" data-k="${k}" aria-label="Câu ${pos + 1}">${pos + 1}</button>`).join('')}</div>
+    <div class="row"><button class="btn" id="again">Làm lại (bản thử)</button></div></div>`;
+  S.order.forEach((k, pos) => {
+    const q = S.qs[k], a = S.ans[k];
+    h += `<article class="q" id="r${k}"><div class="qhead"><span class="qno">Câu ${pos + 1}</span><span class="pill ${g.res[k] === 'right' ? 'ok' : g.res[k] === 'wrong' ? 'bad' : 'warn'}">${g.res[k] === 'right' ? 'Đúng' : g.res[k] === 'wrong' ? 'Sai' : 'Đúng một phần'}</span></div>
+      <div class="stem">${esc(q.stem)}</div>`;
+    if (q.type === 'mcq') h += `<ul class="opts">${q.options.map((o) => `<li class="${q.answer === o.label ? 'correct' : ''}"><b>${o.label}.</b><span>${esc(o.text)}${a === o.label && a !== q.answer ? ' <em style="color:var(--bad)">(bạn chọn)</em>' : ''}</span></li>`).join('')}</ul>`;
+    if (q.type === 'tf') h += `<table class="tf"><tbody>${q.statements.map((s, j) => `<tr><td>${s.label}) ${esc(s.text)}<br><span class="note">Bạn chọn: ${a && a[j] ? (a[j] === 'Đ' ? 'Đúng' : 'Sai') : 'bỏ trống'}</span></td><td class="${q.answer[j]}">${q.answer[j] === 'Đ' ? 'Đúng' : 'Sai'}</td></tr>`).join('')}</tbody></table>`;
+    if (q.type === 'short') h += `<div>Bạn trả lời: <span class="ans">${esc(a || 'bỏ trống')}</span>. Đáp án: ${q.answer.map((x) => `<span class="ans">${esc(x)}</span>`).join(' hoặc ')}</div>`;
+    if (q.solution) h += `<details class="sol"><summary>Lời giải</summary><div>${esc(q.solution)}</div></details>`;
+    h += `</article>`;
+  });
+  app.innerHTML = h;
+  $('#again').onclick = () => { S = null; render(); };
+  app.querySelectorAll('.grid button').forEach((b) => (b.onclick = () => document.getElementById('r' + b.dataset.k).scrollIntoView({ block: 'start' })));
+}
+
+function tick() {
+  const el = $('#timer'); if (!el || !S || S.done) return;
+  const left = Math.max(0, S.deadline - Date.now());
+  const m = Math.floor(left / 60000), s = Math.floor((left % 60000) / 1000);
+  el.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  el.classList.toggle('low', left < 5 * 60000);
+  if (left === 0) { S.done = true; render(); }
+}
+setInterval(tick, 500);
+document.addEventListener('visibilitychange', () => { if (document.hidden && S && !S.done && mode === 'S') { S.leaves++; } else if (!document.hidden && mode === 'S' && S && !S.done) render(); });
+render();
+</script>
