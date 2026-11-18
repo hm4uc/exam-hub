@@ -32,7 +32,7 @@ npm test           # test bộ phân giải đề + test CSDL trên PGlite
 npm run typecheck
 ```
 
-> **Windows:** chạy `npm run build` / `npm run dev` trong thư mục mở bằng chữ ổ đĩa **viết hoa** (`D:Developmentexam-hub`). Nếu terminal đang ở `d:…` (chữ thường), Next.js nạp React hai lần và build báo lỗi `Cannot read properties of null (reading 'useContext')`.
+> **Windows:** chạy `npm run build` / `npm run dev` trong thư mục mở bằng chữ ổ đĩa **viết hoa** (`D:\Development\exam-hub`). Nếu terminal đang ở `d:\…` (chữ thường), Next.js nạp React hai lần và build báo lỗi `Cannot read properties of null (reading 'useContext')`.
 
 ## Cấu trúc
 
