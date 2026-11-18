@@ -1,11 +1,9 @@
 name: CI
 
-# Nhánh main chạy CI qua deploy.yml (CI là bước đầu của deploy); ở đây cho PR và nhánh khác.
+# Chỉ báo xanh/đỏ; Vercel tự deploy khi push lên main, không chờ CI.
 on:
-  pull_request:
   push:
-    branches-ignore: [main]
-  workflow_call:
+  pull_request:
 
 permissions:
   contents: read

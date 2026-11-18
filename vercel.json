@@ -8,8 +8,5 @@
       "path": "/api/keepalive",
       "schedule": "0 20 * * *"
     }
-  ],
-  "git": {
-    "deploymentEnabled": false
-  }
+  ]
 }
