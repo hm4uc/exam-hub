@@ -44,5 +44,8 @@
     "edge >= 109",
     "firefox >= 115",
     "samsung >= 21"
-  ]
+  ],
+  "engines": {
+    "node": ">=22"
+  }
 }
