@@ -3,11 +3,16 @@
 //   2. cấu hình Auth: tắt đăng ký công khai (chỉ server tạo tài khoản), không cần xác nhận email
 //   3. chạy các migration trong supabase/migrations chưa chạy
 // Cần trong .env.deploy: SUPABASE_ACCESS_TOKEN, SUPABASE_PROJECT_REF
-// Chạy: node scripts/setup-supabase.mjs
+// Chạy: node scripts/setup-supabase.mjs            (cả 3 bước)
+//       node scripts/setup-supabase.mjs --only=migrate   (CI/CD: chỉ chạy migration)
+//       node scripts/setup-supabase.mjs --only=keys      (CI/CD: chỉ lấy khoá cho smoke test)
+// Biến môi trường của tiến trình (GitHub Actions secrets) được ưu tiên hơn .env.deploy.
 import { readdirSync, readFileSync } from 'node:fs';
 import { mask, mergeEnv, need, readEnv } from './lib.mjs';
 
-const env = readEnv('.env.deploy');
+const env = { ...readEnv('.env.deploy'), ...Object.fromEntries(['SUPABASE_ACCESS_TOKEN', 'SUPABASE_PROJECT_REF', 'SITE_URL'].filter((k) => process.env[k]).map((k) => [k, process.env[k]])) };
+const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7);
+const step = (name) => !only || only === name;
 const token = need(env, 'SUPABASE_ACCESS_TOKEN', 'Tạo ở https://supabase.com/dashboard/account/tokens');
 const ref = need(env, 'SUPABASE_PROJECT_REF', 'Là chuỗi trong URL dashboard: supabase.com/dashboard/project/<ref>');
 const API = 'https://api.supabase.com/v1';
@@ -29,6 +34,7 @@ const project = await api('GET', `/projects/${ref}`);
 console.log(`Project: ${project.name} (${project.region}), trạng thái ${project.status}`);
 if (project.status !== 'ACTIVE_HEALTHY') console.warn('⚠ Project chưa ở trạng thái ACTIVE_HEALTHY, có thể đang khởi tạo hoặc bị tạm dừng.');
 
+if (step('keys')) {
 let keys = await api('GET', `/projects/${ref}/api-keys?reveal=true`);
 const pick = (pred) => keys.find(pred)?.api_key;
 let publishable = pick((k) => k.type === 'publishable') ?? pick((k) => k.name === 'anon');
@@ -46,9 +52,12 @@ mergeEnv('.env.local', {
   NEXT_PUBLIC_SUPABASE_ANON_KEY: publishable,
   SUPABASE_SERVICE_ROLE_KEY: secret,
 });
+if (process.env.GITHUB_ACTIONS) for (const k of [publishable, secret]) console.log(`::add-mask::${k}`);
 console.log(`✓ Đã ghi .env.local (khoá công khai ${mask(publishable)}, khoá bí mật ${mask(secret)})`);
+}
 
 // 2. Auth
+if (step('auth')) {
 await api('PATCH', `/projects/${ref}/config/auth`, {
   disable_signup: true,
   mailer_autoconfirm: true,
@@ -56,6 +65,8 @@ await api('PATCH', `/projects/${ref}/config/auth`, {
   ...(env.SITE_URL ? { site_url: env.SITE_URL } : {}),
 });
 console.log('✓ Auth: tắt đăng ký công khai, không gửi email xác nhận');
+}
+if (!step('migrate')) process.exit(0);
 
 // 3. Migration
 await sql(`create schema if not exists supabase_migrations;

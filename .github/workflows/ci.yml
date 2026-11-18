@@ -1,13 +1,11 @@
 name: CI
 
+# Nhánh main chạy CI qua deploy.yml (CI là bước đầu của deploy); ở đây cho PR và nhánh khác.
 on:
-  push:
-    branches: [main]
   pull_request:
-
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  push:
+    branches-ignore: [main]
+  workflow_call:
 
 permissions:
   contents: read

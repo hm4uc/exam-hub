@@ -21,8 +21,27 @@ Web kiểm tra trực tuyến cho một giáo viên Toán: tải đề Word → 
    npm install
    node scripts/setup-supabase.mjs                                  # khoá API → .env.local, cấu hình Auth, chạy migration
    node scripts/create-teacher.mjs <tên-đăng-nhập> "<Họ tên>" <mật-khẩu>
-   node scripts/deploy-vercel.mjs                                   # đặt biến môi trường + deploy production
+   node scripts/deploy-vercel.mjs                                   # lần đầu: tạo project Vercel + biến môi trường (sau đó deploy qua CI/CD)
    ```
+
+## CI/CD
+
+| Khi nào | Chạy gì |
+|---|---|
+| Mở PR, push nhánh khác `main` | **CI** (`.github/workflows/ci.yml`): lint, typecheck, test (gồm test CSDL trên PGlite), build |
+| Push / merge vào `main` | **Deploy** (`deploy.yml`): CI → chạy migration mới lên Supabase → build và deploy Vercel production → thử trang và toàn luồng làm bài trên CSDL thật (`smoke-test.mjs`, tự dọn dữ liệu thử) |
+| Hằng tuần | **Dependabot** mở PR cập nhật thư viện (bản nhỏ gộp một PR, bản lớn tách riêng) |
+
+Bước nào lỗi thì dừng ở đó: code lỗi không lên production. Vercel không tự deploy khi push nữa (`vercel.json` → `git.deploymentEnabled: false`); chỉ GitHub Actions deploy. Chạy lại tay: tab **Actions** → **Deploy** → **Run workflow**.
+
+**Secret cần có** (GitHub → Settings → Secrets and variables → Actions → New repository secret):
+
+| Tên | Lấy ở đâu |
+|---|---|
+| `SUPABASE_ACCESS_TOKEN` | supabase.com/dashboard/account/tokens |
+| `VERCEL_TOKEN` | vercel.com/account/settings/tokens (không đặt hạn, hoặc nhớ gia hạn) |
+
+Migration mới: thêm file `supabase/migrations/<thời gian>_<tên>.sql`. Chỉ thêm, không sửa file đã chạy; nên viết sao cho bản code cũ vẫn chạy được (thêm cột, thêm hàm), vì migration chạy trước khi bản mới lên.
 
 ## Phát triển
 

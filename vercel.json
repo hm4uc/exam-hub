@@ -1,5 +1,15 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": ["hnd1"],
-  "crons": [{ "path": "/api/keepalive", "schedule": "0 20 * * *" }]
+  "regions": [
+    "hnd1"
+  ],
+  "crons": [
+    {
+      "path": "/api/keepalive",
+      "schedule": "0 20 * * *"
+    }
+  ],
+  "git": {
+    "deploymentEnabled": false
+  }
 }

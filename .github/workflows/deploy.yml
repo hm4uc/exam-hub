@@ -1,0 +1,109 @@
+name: Deploy
+
+# main: kiểm tra → migration CSDL → deploy Vercel → thử luồng trên bản thật.
+# Code lỗi dừng ở bước kiểm tra, không lên production.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Không huỷ giữa chừng: migration đang chạy dở thì để chạy xong.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # Mã định danh, không phải bí mật (URL Supabase vốn đã công khai trong trang web).
+  SUPABASE_PROJECT_REF: rxwggvmuzgmpplfxdcwp
+  VERCEL_ORG_ID: team_0UWM03xyLvlvr7furd7C03aS
+  VERCEL_PROJECT_ID: prj_dIWXzDobZKyxoT3PsDaNZs76Beow
+  VERCEL_CLI: vercel@66.1.0
+
+jobs:
+  check:
+    uses: ./.github/workflows/ci.yml
+
+  migrate:
+    name: Migrate database
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Require secrets
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          missing=""
+          [ -n "$SUPABASE_ACCESS_TOKEN" ] || missing="$missing SUPABASE_ACCESS_TOKEN"
+          [ -n "$VERCEL_TOKEN" ] || missing="$missing VERCEL_TOKEN"
+          if [ -n "$missing" ]; then
+            echo "::error::Thiếu secret:$missing. Thêm ở GitHub → Settings → Environments → production (xem README, mục CI/CD)."
+            exit 1
+          fi
+      - name: Apply migrations
+        run: node scripts/setup-supabase.mjs --only=migrate
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+  deploy:
+    name: Deploy to Vercel
+    needs: migrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Pull Vercel settings
+        run: npx --yes $VERCEL_CLI pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Build
+        run: npx --yes $VERCEL_CLI build --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Deploy
+        id: deploy
+        run: |
+          url=$(npx --yes $VERCEL_CLI deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Deployed: $url"
+
+  smoke:
+    name: Smoke test production
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Site responds
+        run: |
+          for path in /dang-nhap /dang-ky; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "https://exam-hub-steel.vercel.app$path")
+            echo "$path → $code"; [ "$code" = 200 ] || exit 1
+          done
+      - name: End-to-end flow on the live database
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          node scripts/setup-supabase.mjs --only=keys
+          node scripts/smoke-test.mjs
