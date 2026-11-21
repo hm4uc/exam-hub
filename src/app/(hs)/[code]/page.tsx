@@ -3,13 +3,11 @@ import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Alert, ButtonLink, Panel } from '@/components/ui';
-import { getMe, rpcMessage } from '@/server/auth';
-import { fmtDateTime, isCode } from '@/lib/format';
-import { supabaseServer } from '@/server/supabase/server';
 import { GuestCookieSync } from '@/features/attempt/guest-cookie-sync';
 import { StartForm } from '@/features/attempt/start-form';
-
-export const metadata: Metadata = { title: 'Bài kiểm tra' };
+import { fmtDateTime, isCode } from '@/lib/format';
+import { getMe, rpcMessage } from '@/server/auth';
+import { supabaseServer } from '@/server/supabase/server';
 
 interface Info {
   id: string;
@@ -31,10 +29,27 @@ interface Info {
   guest_name: string | null;
 }
 
+export async function generateMetadata({ params }: { params: Promise<{ code: string }> }): Promise<Metadata> {
+  const { code } = await params;
+  const normalized = code.toLowerCase();
+  if (!isCode(normalized)) return { title: 'Bài kiểm tra' };
+  const supabase = await supabaseServer();
+  const { data } = await supabase.rpc('assignment_info', { p_code: normalized, p_guest_key: null });
+  const info = data as Info | null;
+  if (!info?.title) return { title: 'Bài kiểm tra' };
+  const desc = `${info.question_count} câu · ${info.duration_minutes} phút${info.class_name ? ` · Lớp ${info.class_name}` : ''} — Mở link làm bài ngay trên Exam Hub.`;
+  return {
+    title: info.title,
+    description: desc,
+    openGraph: { title: `${info.title} · Exam Hub`, description: desc },
+    twitter: { title: `${info.title} · Exam Hub`, description: desc },
+  };
+}
+
 export default async function AssignmentPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
-  if (!isCode(code.toLowerCase())) notFound();
   const normalized = code.toLowerCase();
+  if (!isCode(normalized)) notFound();
   const me = await getMe();
   const guestCookie = (await cookies()).get('eh_guest')?.value ?? null;
   const isGuest = !me;
@@ -47,7 +62,7 @@ export default async function AssignmentPage({ params }: { params: Promise<{ cod
 
   if (error) {
     return (
-      <main className="mx-auto max-w-xl px-4 py-8">
+      <main id="main-content" className="mx-auto max-w-xl px-4 py-8">
         <Alert>{rpcMessage(error)}</Alert>
         <Link href={me ? '/' : '/dang-nhap'} className="mt-4 inline-block text-sm font-semibold text-brand underline">
           {me ? 'Về trang của tôi' : 'Về trang đăng nhập'}
@@ -69,11 +84,11 @@ export default async function AssignmentPage({ params }: { params: Promise<{ cod
   ];
 
   return (
-    <main className="mx-auto max-w-xl px-4 py-6">
+    <main id="main-content" className="mx-auto max-w-xl px-4 py-6">
       {isGuest && <GuestCookieSync hasCookie={!!guestCookie} />}
       <h1 className="text-2xl font-bold tracking-tight">{info.title}</h1>
       <Panel className="mt-4">
-        <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+        <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5 text-sm">
           {rows.map(([k, v]) => (
             <div key={k} className="contents"><dt className="text-muted">{k}</dt><dd className="num font-medium">{v}</dd></div>
           ))}

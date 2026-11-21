@@ -65,7 +65,7 @@ export default async function ResultPage({ params, searchParams }: { params: Pro
   const backLabel = isGuest ? 'Về trang bài kiểm tra' : 'Bài của tôi';
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-6">
+    <main id="main-content" className="mx-auto max-w-3xl px-4 py-6">
       <Link href={backHref} className="-my-1 inline-flex min-h-10 items-center gap-1 text-sm text-muted hover:text-brand">
         <ArrowLeft className="h-4 w-4" aria-hidden />{backLabel}
       </Link>

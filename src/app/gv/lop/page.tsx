@@ -27,7 +27,7 @@ export default async function ClassesPage() {
         {!classes?.length ? (
           <Empty title="Chưa có lớp nào">Lớp là tùy chọn để quản lý sĩ số và gom nhóm bài giao — không tạo lớp bạn vẫn tạo đề và gửi link cho học sinh làm ngay được.</Empty>
         ) : (
-          <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
+          <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-card">
             {classes.map((c) => (
               <ClassRow key={c.id} c={{
                 id: c.id, name: c.name, school_year: c.school_year, archived: !!c.archived_at,

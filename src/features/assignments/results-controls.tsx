@@ -65,12 +65,14 @@ export function AssignmentControls({
   open,
   allowDelete = true,
   heading = 'Chỉnh bài giao',
+  embedded = false,
 }: {
   a: EditableAssignment;
   classes: { id: string; name: string }[];
   open: boolean;
   allowDelete?: boolean;
   heading?: string;
+  embedded?: boolean;
 }) {
   const [state, action, pending] = useActionState<AsgState, FormData>(updateAssignment.bind(null, a.id), undefined);
   const [classId, setClassId] = useState(a.class_id ?? '');
@@ -80,21 +82,25 @@ export function AssignmentControls({
   const saved = !!state?.ok && !state.error && dirtyAt !== state;
   const pfx = `u-${a.id.slice(0, 6)}-`;
 
-  return (
-    <Panel className="grid gap-3">
+  const body = (
+    <>
       {heading && <h2 className="font-semibold">{heading}</h2>}
       {state?.error && <Alert>{state.error}</Alert>}
       {saved && <Alert tone="ok">Đã lưu thay đổi.</Alert>}
-      <form action={action} className="grid gap-3" onChange={() => setDirtyAt(state ?? null)}>
-        <Field label="Tên bài" htmlFor={`${pfx}title`}><Input id={`${pfx}title`} name="title" defaultValue={a.title} required /></Field>
-        <Field label="Gắn lớp (quản lý)" htmlFor={`${pfx}class`}>
-          <Select id={`${pfx}class`} name="class_id" value={classId} onChange={(e) => setClassId(e.target.value)}>
-            <option value="">Không gắn lớp (Link tự do)</option>
-            {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </Select>
-        </Field>
+      <form action={action} className="grid gap-3 sm:grid-cols-2" onChange={() => setDirtyAt(state ?? null)}>
+        <div className="sm:col-span-2">
+          <Field label="Tên bài" htmlFor={`${pfx}title`}><Input id={`${pfx}title`} name="title" defaultValue={a.title} required /></Field>
+        </div>
+        <div className="sm:col-span-2">
+          <Field label="Gắn lớp (quản lý)" htmlFor={`${pfx}class`}>
+            <Select id={`${pfx}class`} name="class_id" value={classId} onChange={(e) => setClassId(e.target.value)}>
+              <option value="">Không gắn lớp (Link tự do)</option>
+              {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+          </Field>
+        </div>
         {classId && (
-          <label className="flex min-h-10 items-start gap-2.5 text-sm">
+          <label className="flex min-h-10 items-start gap-2.5 text-sm sm:col-span-2">
             <input type="checkbox" name="restrict_to_class" defaultChecked={a.restrict_to_class} className="mt-0.5 h-5 w-5 shrink-0 accent-[rgb(var(--brand))]" />
             <span>
               <span className="font-medium">Chỉ cho học sinh đăng nhập đúng lớp này</span>
@@ -102,43 +108,51 @@ export function AssignmentControls({
             </span>
           </label>
         )}
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Thời gian (phút)" htmlFor={`${pfx}dur`}>
-            <Input id={`${pfx}dur`} name="duration_minutes" type="number" min={1} max={600} defaultValue={a.duration_minutes} required inputMode="numeric" />
-          </Field>
-          <Field label="Số lượt làm" htmlFor={`${pfx}att`}>
-            <Input id={`${pfx}att`} name="max_attempts" type="number" min={1} max={20} defaultValue={a.max_attempts} required inputMode="numeric" />
+        <Field label="Thời gian (phút)" htmlFor={`${pfx}dur`}>
+          <Input id={`${pfx}dur`} name="duration_minutes" type="number" min={1} max={600} defaultValue={a.duration_minutes} required inputMode="numeric" />
+        </Field>
+        <Field label="Số lượt làm" htmlFor={`${pfx}att`}>
+          <Input id={`${pfx}att`} name="max_attempts" type="number" min={1} max={20} defaultValue={a.max_attempts} required inputMode="numeric" />
+        </Field>
+        <div className={embedded ? '' : 'sm:col-span-2'}>
+          <DateTimeField idPrefix={pfx} name="opens_at" label="Mở lúc" initial={new Date(a.opens_at)} />
+        </div>
+        <div className={embedded ? '' : 'sm:col-span-2'}>
+          <DateTimeField idPrefix={pfx} name="closes_at" label="Đóng lúc (không bắt buộc)" initial={a.closes_at ? new Date(a.closes_at) : null} required={false} hint="Để trống = mở đến khi bấm đóng." />
+        </div>
+        <div className="grid gap-1.5 text-sm sm:col-span-2">
+          <label className="flex min-h-10 items-center gap-2.5"><input type="checkbox" name="shuffle_questions" defaultChecked={a.shuffle_questions} className="h-5 w-5 shrink-0 accent-[rgb(var(--brand))]" />Đảo thứ tự câu hỏi</label>
+          <label className="flex min-h-10 items-center gap-2.5"><input type="checkbox" name="shuffle_choices" defaultChecked={a.shuffle_choices} className="h-5 w-5 shrink-0 accent-[rgb(var(--brand))]" />Đảo phương án A–D</label>
+        </div>
+        <div className={embedded ? '' : 'sm:col-span-2'}>
+          <Field label="Mật khẩu (không bắt buộc)" htmlFor={`${pfx}pw`}><Input id={`${pfx}pw`} name="access_password" defaultValue={a.access_password} autoComplete="off" /></Field>
+        </div>
+        <div className={embedded ? '' : 'sm:col-span-2'}>
+          <Field label="Học sinh được xem" htmlFor={`${pfx}mode`}>
+            <Select id={`${pfx}mode`} name="result_mode" defaultValue={a.result_mode}>
+              <option value="score_answers">Điểm, đáp án và lời giải</option>
+              <option value="score">Chỉ điểm</option>
+              <option value="none">Không xem gì</option>
+            </Select>
           </Field>
         </div>
-        <DateTimeField idPrefix={pfx} name="opens_at" label="Mở lúc" initial={new Date(a.opens_at)} />
-        <DateTimeField idPrefix={pfx} name="closes_at" label="Đóng lúc (không bắt buộc)" initial={a.closes_at ? new Date(a.closes_at) : null} required={false} hint="Để trống = mở đến khi bấm đóng." />
-        <div className="grid gap-1.5 text-sm">
-          <label className="flex min-h-9 items-center gap-2"><input type="checkbox" name="shuffle_questions" defaultChecked={a.shuffle_questions} className="h-4 w-4 shrink-0 accent-[rgb(var(--brand))]" />Đảo thứ tự câu hỏi</label>
-          <label className="flex min-h-9 items-center gap-2"><input type="checkbox" name="shuffle_choices" defaultChecked={a.shuffle_choices} className="h-4 w-4 shrink-0 accent-[rgb(var(--brand))]" />Đảo phương án A–D</label>
+        <div className={embedded ? '' : 'sm:col-span-2'}>
+          <Field label="Xem khi nào" htmlFor={`${pfx}rel`}>
+            <Select id={`${pfx}rel`} name="result_release" defaultValue={a.result_release}>
+              <option value="on_submit">Ngay sau khi nộp</option>
+              <option value="after_close">Sau giờ đóng bài</option>
+            </Select>
+          </Field>
         </div>
-        <Field label="Mật khẩu (không bắt buộc)" htmlFor={`${pfx}pw`}><Input id={`${pfx}pw`} name="access_password" defaultValue={a.access_password} autoComplete="off" /></Field>
-        <Field label="Học sinh được xem" htmlFor={`${pfx}mode`}>
-          <Select id={`${pfx}mode`} name="result_mode" defaultValue={a.result_mode}>
-            <option value="score_answers">Điểm, đáp án và lời giải</option>
-            <option value="score">Chỉ điểm</option>
-            <option value="none">Không xem gì</option>
-          </Select>
-        </Field>
-        <Field label="Xem khi nào" htmlFor={`${pfx}rel`}>
-          <Select id={`${pfx}rel`} name="result_release" defaultValue={a.result_release}>
-            <option value="on_submit">Ngay sau khi nộp</option>
-            <option value="after_close">Sau giờ đóng bài</option>
-          </Select>
-        </Field>
-        <Button type="submit" variant="secondary" disabled={pending}>{pending ? 'Đang lưu…' : 'Lưu cấu hình'}</Button>
+        <div className="flex flex-wrap gap-2 sm:col-span-2">
+          <Button type="submit" disabled={pending}>{pending ? 'Đang lưu…' : 'Lưu cấu hình'}</Button>
+          {open ? (
+            <Button type="button" variant="secondary" onClick={() => start(() => closeNow(a.id))} disabled={busy}>Đóng bài ngay</Button>
+          ) : (
+            <Button type="button" variant="secondary" onClick={() => start(() => reopenNow(a.id))} disabled={busy}>Mở lại bài</Button>
+          )}
+        </div>
       </form>
-      <div className="flex flex-wrap gap-2">
-        {open ? (
-          <Button variant="secondary" className="flex-1" onClick={() => start(() => closeNow(a.id))} disabled={busy}>Đóng bài ngay</Button>
-        ) : (
-          <Button variant="secondary" className="flex-1" onClick={() => start(() => reopenNow(a.id))} disabled={busy}>Mở lại bài</Button>
-        )}
-      </div>
       {allowDelete && (
         !confirmDel ? (
           <button type="button" onClick={() => setConfirmDel(true)} className="min-h-10 justify-self-start text-sm font-medium text-pen hover:underline">Xoá bài giao…</button>
@@ -152,8 +166,11 @@ export function AssignmentControls({
           </div>
         )
       )}
-    </Panel>
+    </>
   );
+
+  if (embedded) return <div className="grid gap-3">{body}</div>;
+  return <Panel className="grid gap-3">{body}</Panel>;
 }
 
 const MODE_LABEL: Record<string, string> = {
@@ -243,7 +260,7 @@ export function QuickLinkCard({
 
       {editing && (
         <div className="mt-4 border-t border-line pt-4">
-          <AssignmentControls a={quick} classes={classes} open={open} allowDelete={false} heading="" />
+          <AssignmentControls a={quick} classes={classes} open={open} allowDelete={false} heading="" embedded />
         </div>
       )}
     </section>

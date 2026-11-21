@@ -3,7 +3,7 @@ import { AlertCircle, AlertTriangle, ChevronDown, Info, RefreshCw, Search, Trash
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
-import { Alert, Badge, Button, Empty, cx } from '@/components/ui';
+import { Alert, Badge, Button, Empty, StatStrip, cx } from '@/components/ui';
 import { CATEGORY_LABEL, EVENT_LABEL, LEVEL_LABEL, describeUA, type TraceCategory, type TraceLevel, type TraceRow } from '@/lib/trace-types';
 import { purgeOldTraces } from './actions';
 
@@ -75,21 +75,16 @@ export function TraceViewer({
 
   return (
     <div className="grid gap-5">
-      <dl className="grid grid-cols-2 overflow-hidden rounded-xl border border-line bg-surface sm:grid-cols-4">
-        {[
-          { k: 'Lỗi (24 giờ)', v: String(stats.errors24h), red: stats.errors24h > 0 },
-          { k: 'Cảnh báo (24 giờ)', v: String(stats.warns24h), red: false },
-          { k: 'Tổng sự kiện (24 giờ)', v: String(stats.total24h), red: false },
-          { k: 'Đang làm bài lúc này', v: String(stats.activeAttempts), red: false },
-        ].map((item, i) => (
-          <div key={item.k} className={`px-4 py-3 ${i % 2 ? 'border-l border-line' : ''} ${i >= 2 ? 'border-t border-line sm:border-t-0 sm:border-l' : ''}`}>
-            <dt className="text-xs text-muted">{item.k}</dt>
-            <dd className={cx('num mt-0.5 text-2xl font-bold', item.red && 'grade-mark')}>{item.v}</dd>
-          </div>
-        ))}
-      </dl>
+      <StatStrip
+        items={[
+          { label: 'Lỗi (24 giờ)', value: String(stats.errors24h), accent: stats.errors24h > 0 },
+          { label: 'Cảnh báo (24 giờ)', value: String(stats.warns24h) },
+          { label: 'Tổng sự kiện (24 giờ)', value: String(stats.total24h) },
+          { label: 'Đang làm bài lúc này', value: String(stats.activeAttempts) },
+        ]}
+      />
 
-      <section className="grid gap-3 rounded-xl border border-line bg-surface p-4">
+      <section className="grid gap-3 rounded-xl border border-line bg-surface p-4 shadow-card">
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="Lọc theo mức độ">
             {levels.map((l) => (
@@ -148,7 +143,7 @@ export function TraceViewer({
               onChange={(e) => setQ(e.target.value)}
               placeholder="Tìm tên đăng nhập (vd: duy.hung), mã đề (x5jqhe), nội dung lỗi…"
               aria-label="Tìm trong nhật ký"
-              className="min-h-10 w-full rounded-lg border border-line bg-surface pl-9 pr-3 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25"
+              className="min-h-11 w-full rounded-lg border border-line bg-surface pl-9 pr-3 text-base focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25 sm:min-h-10 sm:text-sm"
             />
           </div>
           <Button type="submit" variant="secondary" className="min-h-10 px-4 text-xs">Tìm</Button>
@@ -228,13 +223,13 @@ function TraceItem({ row, filters }: { row: TraceRow; filters: Filters }) {
   const hasMeta = row.meta && Object.keys(row.meta).length > 0;
 
   return (
-    <li className={cx('px-4 py-3', row.level === 'error' && 'bg-pen-soft/25')}>
+    <li className={cx(row.level === 'error' && 'bg-pen-soft/20')}>
       <details className="group">
-        <summary className="flex cursor-pointer list-none items-start gap-3 [&::-webkit-details-marker]:hidden">
+        <summary className="flex cursor-pointer list-none items-start gap-3 px-4 py-3.5 transition-colors hover:bg-sunken/70 [&::-webkit-details-marker]:hidden">
           <div className="pt-0.5"><LevelIcon level={row.level} /></div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="font-semibold text-sm">{title}</span>
+              <span className="text-sm font-semibold">{title}</span>
               <Badge tone={tone}>{LEVEL_LABEL[row.level]}</Badge>
               <Badge>{CATEGORY_LABEL[row.category] ?? row.category}</Badge>
               {row.assignment_code && <Badge tone="brand" className="num uppercase">{row.assignment_code}</Badge>}
@@ -253,7 +248,7 @@ function TraceItem({ row, filters }: { row: TraceRow; filters: Filters }) {
           </div>
         </summary>
 
-        <div className="mt-3 grid gap-2.5 border-t border-line/70 pt-3 pl-7 text-xs">
+        <div className="grid gap-2.5 border-t border-line/70 bg-sunken/30 px-4 pb-3.5 pt-3 pl-11 text-xs">
           <div className="flex flex-wrap gap-2">
             {row.username && (
               <Link href={buildHref(filters, { q: row.username })} className="rounded-md border border-line bg-sunken/70 px-2.5 py-1 font-medium text-brand hover:bg-sunken">

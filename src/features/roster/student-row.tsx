@@ -1,8 +1,8 @@
 'use client';
 import { KeyRound, Lock, LockOpen, Pencil } from 'lucide-react';
+import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { Badge, Button, Input, cx } from '@/components/ui';
-import Link from 'next/link';
 import { renameAccount, setLocked, setPassword, setStudentClass } from '@/features/accounts/actions';
 
 interface S { id: string; role: string; full_name: string; username: string; class_id: string | null; is_locked: boolean; must_change_password: boolean; created: string; duplicate: boolean }
@@ -23,18 +23,18 @@ export function StudentRow({ s, classes }: { s: S; classes: { id: string; name: 
     });
 
   return (
-    <li className={cx('grid gap-3 px-4 py-3.5 lg:grid-cols-[minmax(0,1fr)_11rem_9rem_17rem] lg:items-start lg:gap-4', s.is_locked && 'bg-sunken/60')}>
+    <li className={cx('group relative grid gap-3 px-4 py-3.5 transition-colors hover:bg-sunken/70 focus-within:bg-sunken/70 lg:grid-cols-[minmax(0,1fr)_11rem_9rem_17rem] lg:items-start lg:gap-4', s.is_locked && 'bg-sunken/60')}>
       <div className="min-w-0">
         {editing ? (
-          <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); run(async () => { const r = await renameAccount(s.id, name); if (r.ok) setEditing(false); return r; }); }}>
+          <form className="relative z-10 flex gap-2" onSubmit={(e) => { e.preventDefault(); run(async () => { const r = await renameAccount(s.id, name); if (r.ok) setEditing(false); return r; }); }}>
             <Input value={name} onChange={(e) => setName(e.target.value)} className="min-w-0 flex-1" aria-label="Họ tên" autoFocus />
             <Button type="submit" disabled={pending}>Lưu</Button>
             <Button type="button" variant="secondary" onClick={() => { setEditing(false); setName(s.full_name); }}>Huỷ</Button>
           </form>
         ) : (
           <p className="flex items-center gap-1 font-medium">
-            <Link href={`/gv/hoc-sinh/${s.id}`} className="min-w-0 break-words text-brand hover:underline">{s.full_name}</Link>
-            <button type="button" onClick={() => setEditing(true)} className="-my-2 grid h-9 w-9 shrink-0 place-items-center rounded-lg text-muted hover:bg-sunken hover:text-brand" aria-label={`Sửa tên ${s.full_name}`}><Pencil className="h-4 w-4" /></button>
+            <Link href={`/gv/hoc-sinh/${s.id}`} className="row-link min-w-0 break-words text-ink transition-colors group-hover:text-brand">{s.full_name}</Link>
+            <button type="button" onClick={() => setEditing(true)} className="relative z-10 -my-2 grid h-9 w-9 shrink-0 place-items-center rounded-lg text-muted hover:bg-surface hover:text-brand" aria-label={`Sửa tên ${s.full_name}`}><Pencil className="h-4 w-4" /></button>
           </p>
         )}
         <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted">
@@ -46,9 +46,9 @@ export function StudentRow({ s, classes }: { s: S; classes: { id: string; name: 
           {s.role === 'teacher' && <Badge tone="brand">Giáo viên</Badge>}
         </p>
         {tempPw && (
-          <p className="mt-2 rounded-lg bg-ok-soft px-3 py-2 text-sm text-ok">
+          <p className="relative z-10 mt-2 rounded-lg bg-ok-soft px-3 py-2 text-sm text-ok">
             Mật khẩu tạm: <b className="num select-all text-base tracking-wider">{tempPw}</b><br />
-            <span className="text-xs">Đưa cho học sinh. Lần đăng nhập tới em sẽ phải đặt mật khẩu mới.</span>
+            <span className="text-xs">Đưa cho học sinh. Em có thể đổi mật khẩu mới hoặc bấm “Để sau”.</span>
           </p>
         )}
         {note && <p className={cx('mt-1 text-sm', note.ok ? 'text-ok' : 'text-pen')}>{note.text}</p>}
@@ -56,13 +56,13 @@ export function StudentRow({ s, classes }: { s: S; classes: { id: string; name: 
       {s.role === 'student' ? (
         <select value={s.class_id ?? ''} disabled={pending} aria-label={`Lớp của ${s.full_name}`}
           onChange={(e) => run(() => setStudentClass(s.id, e.target.value || null))}
-          className={cx('min-h-11 w-full rounded-lg border bg-surface px-2.5 text-base lg:min-h-10 lg:text-sm', s.class_id ? 'border-line' : 'border-warn text-warn')}>
+          className={cx('relative z-10 min-h-11 w-full cursor-pointer rounded-lg border bg-surface px-2.5 text-base lg:min-h-10 lg:text-sm', s.class_id ? 'border-line' : 'border-warn text-warn')}>
           <option value="">Chưa xếp lớp</option>
           {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-        ) : <span className="hidden lg:block" />}
+      ) : <span className="hidden lg:block" />}
       <p className="num hidden pt-2.5 text-sm text-muted lg:block">{s.created}</p>
-      <div className="flex flex-wrap gap-1 lg:justify-end">
+      <div className="relative z-10 flex flex-wrap gap-1 lg:justify-end">
         {!confirmReset ? (
           <Button variant="ghost" className="px-2.5" onClick={() => setConfirmReset(true)} disabled={pending}><KeyRound className="h-4 w-4" aria-hidden />Đặt lại mật khẩu</Button>
         ) : (

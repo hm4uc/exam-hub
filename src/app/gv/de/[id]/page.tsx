@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Eye, Plus } from 'lucide-react';
+import { ChevronRight, Eye, Plus } from 'lucide-react';
 import { Badge, ButtonLink, PageTitle } from '@/components/ui';
 import { DEFAULT_SCORING, type Scoring } from '@/domain/exam/types';
 import { QuickLinkCard, type EditableAssignment } from '@/features/assignments/results-controls';
@@ -100,17 +100,20 @@ export default async function ExamPage({ params }: { params: Promise<{ id: strin
         <aside className="grid gap-4 lg:sticky lg:top-4">
           <ExamMeta id={id} title={exam.title} scoring={scoring} status={exam.status as 'draft' | 'published'} count={qs?.length ?? 0} />
           {list.length > 0 && (
-            <section className="rounded-xl border border-line bg-surface p-4 text-sm">
-              <h2 className="mb-2 font-semibold">Tất cả link làm bài ({list.length})</h2>
-              <ul className="grid gap-1.5">
+            <section className="overflow-hidden rounded-xl border border-line bg-surface shadow-card text-sm">
+              <h2 className="border-b border-line px-4 py-3 font-semibold">Tất cả link làm bài ({list.length})</h2>
+              <ul className="divide-y divide-line">
                 {list.map((a) => (
-                  <li key={a.id} className="flex items-center justify-between gap-2">
-                    <Link href={`/gv/bai-giao/${a.id}`} className="min-w-0 truncate py-1 text-brand hover:underline">
-                      {a.title}
+                  <li key={a.id}>
+                    <Link href={`/gv/bai-giao/${a.id}`} className="group flex items-center justify-between gap-2 px-4 py-2.5 transition-colors hover:bg-sunken/70">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium text-ink transition-colors group-hover:text-brand">{a.title}</span>
+                        <span className="text-xs text-muted">
+                          {a.classes?.name ? `Lớp ${a.classes.name}` : 'Tự do'} · {a.attempts?.[0]?.count ?? 0} lượt
+                        </span>
+                      </span>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted/60 transition-transform group-hover:translate-x-0.5 group-hover:text-brand" aria-hidden />
                     </Link>
-                    <span className="shrink-0 text-xs text-muted">
-                      {a.classes?.name ? `Lớp ${a.classes.name}` : 'Tự do'} · {a.attempts?.[0]?.count ?? 0} lượt
-                    </span>
                   </li>
                 ))}
               </ul>

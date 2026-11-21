@@ -445,7 +445,7 @@ export function ExamRunner({ code }: { code: string }) {
         )}
       </div>
 
-      <main className="mx-auto grid max-w-3xl gap-4 px-4 pt-4">
+      <main id="main-content" className="mx-auto grid max-w-3xl gap-4 px-4 pt-4">
         <section aria-label="Phiếu trả lời" className="rounded-xl border border-line bg-surface p-3 sm:p-4">
           <div className="mb-2.5 flex items-baseline justify-between gap-2 text-sm">
             <span className="font-semibold">Phiếu trả lời</span>

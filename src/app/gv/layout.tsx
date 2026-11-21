@@ -23,7 +23,7 @@ export default async function TeacherLayout({ children }: { children: React.Reac
         </div>
       )}
       <FileDropOverlay />
-      <main className="mx-auto max-w-6xl px-4 pb-16 pt-6" style={{ paddingLeft: 'max(1rem, env(safe-area-inset-left))', paddingRight: 'max(1rem, env(safe-area-inset-right))' }}>{children}</main>
+      <main id="main-content" className="mx-auto max-w-6xl px-4 pb-16 pt-6" style={{ paddingLeft: 'max(1rem, env(safe-area-inset-left))', paddingRight: 'max(1rem, env(safe-area-inset-right))' }}>{children}</main>
     </>
   );
 }

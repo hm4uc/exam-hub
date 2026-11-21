@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Eye, Upload } from 'lucide-react';
+import { ChevronRight, Eye, Upload } from 'lucide-react';
 import { Badge, ButtonLink, Empty, PageTitle } from '@/components/ui';
 import { fmtDateTime } from '@/lib/format';
 import { supabaseServer } from '@/server/supabase/server';
@@ -22,41 +22,55 @@ export default async function ExamsPage() {
       {!exams?.length ? (
         <Empty title="Chưa có đề nào">Tải file Word đề lên, hệ thống sẽ tách câu hỏi, đáp án và tạo sẵn link làm bài ngay.</Empty>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-line bg-surface">
-          <table className="w-full text-sm">
-            <thead className="bg-sunken text-left text-xs uppercase tracking-wider text-muted">
-              <tr>
-                <th className="px-4 py-2.5 font-semibold">Tên đề</th>
-                <th className="px-4 py-2.5 text-right font-semibold sm:text-left">Số câu</th>
-                <th className="hidden px-4 py-2.5 font-semibold sm:table-cell">Link bài làm</th>
-                <th className="hidden px-4 py-2.5 font-semibold sm:table-cell">Trạng thái</th>
-                <th className="hidden px-4 py-2.5 font-semibold md:table-cell">Tạo lúc</th>
-                <th className="px-4 py-2.5 text-right font-semibold"><span className="sr-only">Xem trước</span></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {exams.map((e) => (
-                <tr key={e.id} className="hover:bg-sunken/60">
-                  <td className="px-4 py-3">
-                    <Link href={`/gv/de/${e.id}`} className="font-semibold text-brand hover:underline">{e.title}</Link>
-                    <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted sm:hidden">
-                      {e.status === 'published' ? <Badge tone="ok">Đã xuất bản</Badge> : <Badge tone="warn">Nháp</Badge>}
-                      <span className="num">{(e.assignments as unknown as { count: number }[])[0]?.count ?? 0} link</span>
-                    </p>
-                  </td>
-                  <td className="num px-4 py-3 text-right sm:text-left">{(e.questions as unknown as { count: number }[])[0]?.count ?? 0}</td>
-                  <td className="num hidden px-4 py-3 sm:table-cell">{(e.assignments as unknown as { count: number }[])[0]?.count ?? 0} link</td>
-                  <td className="hidden px-4 py-3 sm:table-cell">{e.status === 'published' ? <Badge tone="ok">Đã xuất bản</Badge> : <Badge tone="warn">Nháp</Badge>}</td>
-                  <td className="num hidden px-4 py-3 text-muted md:table-cell">{fmtDateTime(e.created_at)}</td>
-                  <td className="px-4 py-3 text-right">
-                    <Link href={`/gv/de/${e.id}/xem-truoc`} className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-muted hover:bg-sunken hover:text-brand">
-                      <Eye className="h-3.5 w-3.5" aria-hidden />Xem trước
+        <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-card">
+          <div className="hidden grid-cols-[minmax(0,1fr)_5.5rem_6.5rem_7.5rem_9.5rem_7.5rem] items-center gap-3 bg-sunken px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted md:grid">
+            <span>Tên đề</span>
+            <span>Số câu</span>
+            <span>Link làm</span>
+            <span>Trạng thái</span>
+            <span>Tạo lúc</span>
+            <span className="sr-only">Xem trước</span>
+          </div>
+          <ul className="divide-y divide-line">
+            {exams.map((e) => {
+              const qCount = (e.questions as unknown as { count: number }[])[0]?.count ?? 0;
+              const asgCount = (e.assignments as unknown as { count: number }[])[0]?.count ?? 0;
+              return (
+                <li
+                  key={e.id}
+                  className="group relative grid items-center gap-3 px-4 py-3.5 transition-colors hover:bg-sunken/70 focus-within:bg-sunken/70 md:grid-cols-[minmax(0,1fr)_5.5rem_6.5rem_7.5rem_9.5rem_7.5rem]"
+                >
+                  <div className="min-w-0 pr-16 md:pr-0">
+                    <Link href={`/gv/de/${e.id}`} className="row-link block truncate font-semibold text-ink transition-colors group-hover:text-brand">
+                      {e.title}
                     </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted md:hidden">
+                      <span className="num font-medium text-ink/80">{qCount} câu</span>
+                      <span>·</span>
+                      <span className="num">{asgCount} link</span>
+                      {e.status === 'published' ? <Badge tone="ok">Đã xuất bản</Badge> : <Badge tone="warn">Nháp</Badge>}
+                    </p>
+                  </div>
+                  <span className="num hidden text-sm md:block">{qCount} câu</span>
+                  <span className="num hidden text-sm text-muted md:block">{asgCount} link</span>
+                  <span className="hidden md:block">
+                    {e.status === 'published' ? <Badge tone="ok">Đã xuất bản</Badge> : <Badge tone="warn">Nháp</Badge>}
+                  </span>
+                  <span className="num hidden text-xs text-muted md:block">{fmtDateTime(e.created_at)}</span>
+                  <div className="absolute right-3 top-1/2 z-10 flex -translate-y-1/2 items-center gap-1 md:static md:translate-y-0 md:justify-end">
+                    <Link
+                      href={`/gv/de/${e.id}/xem-truoc`}
+                      className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-transparent px-2.5 text-xs font-semibold text-muted transition-colors hover:border-line hover:bg-surface hover:text-brand"
+                    >
+                      <Eye className="h-4 w-4" aria-hidden />
+                      <span className="hidden sm:inline">Xem trước</span>
+                    </Link>
+                    <ChevronRight className="hidden h-4 w-4 shrink-0 text-muted/60 transition-transform group-hover:translate-x-0.5 group-hover:text-brand md:block" aria-hidden />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
     </>

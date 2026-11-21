@@ -1,9 +1,10 @@
+import { ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { Alert, Badge, Empty } from '@/components/ui';
-import { getMe, homePathFor, rpcMessage } from '@/server/auth';
+import { Alert, Badge, Empty, interactiveRowClass } from '@/components/ui';
 import { fmtDateTime, fmtScore } from '@/lib/format';
+import { getMe, homePathFor, rpcMessage } from '@/server/auth';
 import { supabaseServer } from '@/server/supabase/server';
 
 export const metadata: Metadata = { title: 'Bài của tôi' };
@@ -38,7 +39,7 @@ export default async function StudentHome() {
   ];
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-6">
+    <main id="main-content" className="mx-auto max-w-3xl px-4 py-6">
       <h1 className="text-2xl font-bold tracking-tight">Bài của tôi</h1>
       {error && <Alert className="mt-4">{rpcMessage(error)}</Alert>}
       {!res?.class_name && !items.length && !error && (
@@ -50,15 +51,15 @@ export default async function StudentHome() {
       {groups.filter((g) => g.list.length).map((g) => (
         <section key={g.title} className="mt-7">
           <h2 className="mb-3 text-base font-semibold">{g.title}</h2>
-          <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
+          <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-card">
             {g.list.map((i) => {
               const st = STATE[i.state];
               const href = (i.state === 'closed' || i.state === 'no_attempts_left') && i.last_attempt_id ? `/${i.code}/ket-qua?id=${i.last_attempt_id}` : `/${i.code}`;
               return (
                 <li key={i.code}>
-                  <Link href={href} className="flex items-center gap-3 px-4 py-3.5 hover:bg-sunken">
+                  <Link href={href} className={interactiveRowClass}>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-semibold">{i.title}</p>
+                      <p className="truncate font-semibold transition-colors group-hover:text-brand">{i.title}</p>
                       <p className="mt-0.5 text-sm text-muted">
                         {i.state === 'upcoming'
                           ? `Mở lúc ${fmtDateTime(i.opens_at)}`
@@ -72,6 +73,7 @@ export default async function StudentHome() {
                     ) : (
                       <Badge tone={st.tone}>{st.label}</Badge>
                     )}
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted/60 transition-transform group-hover:translate-x-0.5 group-hover:text-brand" aria-hidden />
                   </Link>
                 </li>
               );

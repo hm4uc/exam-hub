@@ -14,7 +14,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <ThemeSwitch onShell />
         </div>
       </div>
-      <main className="mx-auto -mt-24 max-w-md px-4 pb-10 sm:-mt-32">
+      <main id="main-content" className="mx-auto -mt-24 max-w-md px-4 pb-10 sm:-mt-32">
         <div className="rounded-2xl border border-line bg-surface p-5 shadow-pop sm:p-8">{children}</div>
       </main>
     </div>

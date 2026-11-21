@@ -2,7 +2,18 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { COOKIE_OPTIONS, SUPABASE_ANON_KEY, SUPABASE_URL } from '@/server/supabase/env';
 
-const PUBLIC = ['/dang-nhap', '/dang-ky', '/thiet-bi-chua-ho-tro', '/api/keepalive', '/api/trace'];
+const PUBLIC = [
+  '/dang-nhap',
+  '/dang-ky',
+  '/thiet-bi-chua-ho-tro',
+  '/api/keepalive',
+  '/api/trace',
+  '/manifest.webmanifest',
+  '/robots.txt',
+  '/icon.svg',
+  '/apple-icon',
+  '/opengraph-image',
+];
 // Link làm bài công khai: /[code], /[code]/lam, /[code]/ket-qua (mã 6 ký tự)
 const PUBLIC_ASSIGNMENT = /^\/[a-z2-9]{6}(?:\/(?:lam|ket-qua))?$/i;
 
@@ -35,5 +46,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|docx)$).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|docx|webmanifest)$).*)'],
 };

@@ -4,9 +4,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Thế giới thị giác: tờ giấy kiểm tra trên nền xanh dương tối. Mực xanh đậm cho thao tác, khung (shell) xanh navy,
-   bút đỏ của giáo viên cho chấm và lỗi. Màu ở dạng "R G B" để Tailwind ghép độ trong suốt.
-   Chế độ: theo máy (mặc định) hoặc chọn tay qua <html data-theme="light|dark">. Tối được thiết kế riêng, không đảo màu. */
+/* Thế giới thị giác: tờ giấy kiểm tra trên nền xanh dương tối (Impeccable Mode: Operate).
+   Mực xanh đậm cho thao tác chính, khung navy, bút đỏ giáo viên cho điểm số & lỗi.
+   Màu dạng "R G B" để Tailwind ghép alpha; chế độ tối thiết kế riêng đạt WCAG AA (>= 4.5:1). */
 :root {
   --ground: 243 246 251;
   --surface: 255 255 255;
@@ -79,20 +79,47 @@
 }
 
 @layer base {
-  html { -webkit-text-size-adjust: 100%; }
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    scrollbar-color: rgb(var(--line)) transparent;
+    scrollbar-width: thin;
+  }
   body {
     @apply bg-ground text-ink antialiased;
     font-feature-settings: 'tnum' 0;
+    overflow-x: clip;
+  }
+  a, button, summary, input, select, textarea {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
   ::selection { background: rgb(var(--brand) / 0.22); }
   :focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: 2px; border-radius: 6px; }
   input, textarea, select { caret-color: rgb(var(--brand)); }
   a { text-underline-offset: 3px; }
   h1, h2, h3 { text-wrap: balance; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgb(var(--line)); border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgb(var(--muted) / 0.55); }
 }
 
 @layer components {
   .num { font-variant-numeric: tabular-nums; }
+
+  /* Bỏ qua thanh điều hướng cho người dùng bàn phím & trình đọc màn hình */
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-brand focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-brand-on focus:shadow-pop;
+  }
+
+  /* Stretched link: mở rộng vùng bấm phủ kín cả khung item mà vẫn giữ HTML chuẩn ngữ nghĩa & nút phụ phía trên */
+  .row-link::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
 
   /* Nội dung câu hỏi đã render (KaTeX + ảnh) */
   .rich { overflow-wrap: anywhere; line-height: 1.65; }
@@ -106,12 +133,14 @@
 
   /* Ô tô của phiếu trả lời trắc nghiệm — điểm nhấn riêng của sản phẩm */
   .bubble {
-    @apply relative inline-flex h-9 w-9 select-none items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors;
+    @apply relative inline-flex h-10 w-10 cursor-pointer select-none items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors sm:h-9 sm:w-9;
     border-color: rgb(var(--brand) / 0.35);
     color: rgb(var(--brand));
     background: rgb(var(--surface));
   }
+  .bubble:hover { border-color: rgb(var(--brand)); background: rgb(var(--brand-soft) / 0.65); }
   .bubble[data-state='filled'] { background: rgb(var(--brand)); border-color: rgb(var(--brand)); color: rgb(var(--on-brand)); }
+  .bubble[data-state='filled']:hover { background: rgb(var(--brand-strong)); border-color: rgb(var(--brand-strong)); }
   .bubble[data-current='true'] { box-shadow: 0 0 0 3px rgb(var(--ground)), 0 0 0 5px rgb(var(--ink)); }
   .bubble[data-flag='true']::after {
     content: ''; position: absolute; top: -2px; right: -2px; width: 10px; height: 10px; border-radius: 9999px;
@@ -126,5 +155,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
 }

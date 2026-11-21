@@ -22,7 +22,7 @@ export function StartForm({
   initialName?: string;
 }) {
   const router = useRouter();
-  const savedName = useSyncExternalStore(() => () => {}, () => (isGuest ? getSavedGuestName() : ''), () => '');
+  const savedName = useSyncExternalStore(() => () => { }, () => (isGuest ? getSavedGuestName() : ''), () => '');
   const [editedName, setEditedName] = useState<string | null>(null);
   const guestName = editedName ?? (initialName || savedName);
   const [pw, setPw] = useState('');

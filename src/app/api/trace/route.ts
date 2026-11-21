@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { supabaseAdmin } from '@/server/supabase/admin';
 import { supabaseServer } from '@/server/supabase/server';
 
+const EXTENSION_RE = /(?:chrome|moz|safari|safari-web|edge|ms-browser)-extension:\/\/|webkit-masked-url:\/\/|\/executors\/\d+\.js/i;
+
 const EventSchema = z.object({
   level: z.enum(['info', 'warn', 'error']).default('info'),
   category: z.enum(['auth', 'exam', 'nav', 'error', 'network', 'admin']),
@@ -31,11 +33,21 @@ function safeMeta(m: Record<string, unknown> | undefined): Record<string, unknow
   }
 }
 
+function isExtensionNoise(e: z.infer<typeof EventSchema>): boolean {
+  if (e.category !== 'error') return false;
+  const stack = typeof e.meta?.stack === 'string' ? e.meta.stack : '';
+  const file = typeof e.meta?.filename === 'string' ? e.meta.filename : '';
+  return EXTENSION_RE.test(stack) || EXTENSION_RE.test(file);
+}
+
 export async function POST(request: NextRequest) {
   try {
     const raw = await request.json().catch(() => null);
     const parsed = BatchSchema.safeParse(raw);
     if (!parsed.success) return NextResponse.json({ ok: false }, { status: 400 });
+
+    const validEvents = parsed.data.events.filter((e) => !isExtensionNoise(e));
+    if (!validEvents.length) return NextResponse.json({ ok: true });
 
     const ua = request.headers.get('user-agent')?.slice(0, 300) ?? null;
     let userId: string | null = null;
@@ -51,7 +63,7 @@ export async function POST(request: NextRequest) {
       }
     } catch { /* khách hoặc chưa đăng nhập */ }
 
-    const rows = parsed.data.events.map((e) => ({
+    const rows = validEvents.map((e) => ({
       level: e.level,
       category: e.category,
       event: e.event,

@@ -39,17 +39,17 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
           <section>
             <h2 className="mb-3 font-semibold">Bài làm</h2>
             {!attempts?.length ? <Empty title="Chưa làm bài nào" /> : (
-              <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
+              <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-card">
                 {attempts.map((t) => (
-                  <li key={t.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                  <li key={t.id} className="group relative flex flex-wrap items-center gap-3 px-4 py-3 transition-colors hover:bg-sunken/70 focus-within:bg-sunken/70">
                     <div className="min-w-0 flex-1">
-                      <Link href={`/gv/bai-giao/${t.assignment_id}/bai-lam/${t.id}`} className="font-medium text-brand hover:underline">
+                      <Link href={`/gv/bai-giao/${t.assignment_id}/bai-lam/${t.id}`} className="row-link block truncate font-medium text-ink transition-colors group-hover:text-brand">
                         {(t.assignments as unknown as { title: string } | null)?.title}
                       </Link>
                       <p className="num text-xs text-muted">Lượt {t.attempt_no} · {t.submitted_at ? `nộp ${fmtDateTime(t.submitted_at)}` : 'chưa nộp'}</p>
                     </div>
                     {t.submitted_at ? <span className="grade-mark num text-lg">{fmtScore(t.score)}</span> : <Badge tone="warn">Đang làm</Badge>}
-                    <DeleteAttemptButton id={t.id} />
+                    <div className="relative z-10"><DeleteAttemptButton id={t.id} /></div>
                   </li>
                 ))}
               </ul>

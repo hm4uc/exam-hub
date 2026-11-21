@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
+import { ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Badge, PageTitle, Panel } from '@/components/ui';
+import { Badge, PageTitle, Panel, StatStrip, cx } from '@/components/ui';
 import { AssignmentControls, CopyLink, ExportButton, type ExportRow } from '@/features/assignments/results-controls';
 import { fmtDateTime, fmtScore } from '@/lib/format';
 import { supabaseServer } from '@/server/supabase/server';
@@ -65,12 +66,10 @@ export default async function AssignmentResults({ params }: { params: Promise<{ 
   const classStudentSet = new Set((students ?? []).map((s) => s.id));
   const participants = new Map<string, Participant>();
 
-  // 1. Học sinh trong lớp (nếu bài giao có gắn lớp)
   for (const s of students ?? []) {
     participants.set(`u:${s.id}`, { key: `u:${s.id}`, full_name: s.full_name, username: s.username, isGuest: false, outsider: false });
   }
 
-  // 2. Học sinh có tài khoản đã làm nhưng không nằm trong lớp hiện tại (hoặc bài giao mở tự do)
   const extraIds = [...loggedInStudentIds].filter((sid) => !classStudentSet.has(sid));
   if (extraIds.length) {
     const { data: extra } = await supabase.from('profiles').select('id, full_name, username').in('id', extraIds);
@@ -79,7 +78,6 @@ export default async function AssignmentResults({ params }: { params: Promise<{ 
     }
   }
 
-  // 3. Học sinh không đăng nhập (khách)
   for (const [k, list] of byActor.entries()) {
     if (!k.startsWith('g:')) continue;
     const latestName = [...list].reverse().find((t) => t.guest_name)?.guest_name ?? 'Khách';
@@ -92,10 +90,10 @@ export default async function AssignmentResults({ params }: { params: Promise<{ 
     const live = list.find((t) => !t.submitted_at && new Date(t.deadline_at).getTime() + 30000 > now);
     const best = submitted.reduce<Att | null>((b, t) => (b == null || Number(t.score) > Number(b.score) ? t : b), null);
     const status: 'done' | 'doing' | 'none' = live ? 'doing' : submitted.length ? 'done' : 'none';
-    return { p, list, best, status, leaves: Math.max(0, ...list.map((t) => t.tab_leaves)), last: submitted.at(-1) };
+    const targetAttempt = best ?? live ?? list.at(-1) ?? null;
+    return { p, list, best, targetAttempt, status, leaves: Math.max(0, ...list.map((t) => t.tab_leaves)), last: submitted.at(-1) };
   });
   rows.sort((x, y) => {
-    // Ưu tiên người đã làm/đang làm lên trước nếu bài tự do; hoặc sắp tên theo tiếng Việt
     if (!a.class_id && x.status !== y.status) {
       const rank = { doing: 0, done: 1, none: 2 };
       return rank[x.status] - rank[y.status];
@@ -130,67 +128,85 @@ export default async function AssignmentResults({ params }: { params: Promise<{ 
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="grid gap-4">
-          <dl className="grid grid-cols-2 overflow-hidden rounded-xl border border-line bg-surface sm:grid-cols-4">
-            {[
-              ['Phạm vi', className ? `Lớp ${className}` : 'Link tự do'],
-              ['Đã nộp', a.class_id ? `${done.length}/${rows.length}` : `${done.length} bài`],
-              ['Đang làm', String(rows.filter((r) => r.status === 'doing').length)],
-              ['Điểm trung bình', avg == null ? '—' : fmtScore(avg)],
-            ].map(([k, v], i) => (
-              <div key={k} className={`px-4 py-3 ${i % 2 ? 'border-l border-line' : ''} ${i >= 2 ? 'border-t border-line sm:border-t-0 sm:border-l' : ''}`}>
-                <dt className="text-xs text-muted">{k}</dt>
-                <dd className={`num mt-0.5 truncate text-lg font-bold ${k === 'Điểm trung bình' && avg != null ? 'grade-mark' : ''}`}>{v}</dd>
-              </div>
-            ))}
-          </dl>
+          <StatStrip
+            items={[
+              { label: 'Phạm vi', value: className ? `Lớp ${className}` : 'Link tự do' },
+              { label: 'Đã nộp', value: a.class_id ? `${done.length}/${rows.length}` : `${done.length} bài` },
+              { label: 'Đang làm', value: String(rows.filter((r) => r.status === 'doing').length) },
+              { label: 'Điểm trung bình', value: avg == null ? '—' : fmtScore(avg), accent: avg != null },
+            ]}
+          />
 
-          <div className="overflow-x-auto rounded-xl border border-line bg-surface">
-            <table className="w-full text-sm">
-              <thead className="bg-sunken text-left text-xs uppercase tracking-wider text-muted">
-                <tr>
-                  <th className="px-4 py-2.5 font-semibold">Học sinh</th>
-                  <th className="hidden px-4 py-2.5 font-semibold sm:table-cell">Trạng thái</th>
-                  <th className="px-4 py-2.5 text-right font-semibold">Điểm{a.max_attempts > 1 ? ' cao nhất' : ''}</th>
-                  <th className="hidden px-4 py-2.5 text-right font-semibold md:table-cell">Rời trang</th>
-                  <th className="hidden px-4 py-2.5 font-semibold md:table-cell">Nộp lúc</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {rows.map((r) => (
-                  <tr key={r.p.key} className="hover:bg-sunken/60">
-                    <td className="px-4 py-2.5">
+          <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-card">
+            <div className="hidden grid-cols-[minmax(0,1fr)_7.5rem_5rem_5.5rem_8.5rem_1.25rem] items-center gap-3 bg-sunken px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted md:grid">
+              <span>Học sinh</span>
+              <span>Trạng thái</span>
+              <span className="text-right">Điểm{a.max_attempts > 1 ? ' cao nhất' : ''}</span>
+              <span className="text-right">Rời trang</span>
+              <span>Nộp lúc</span>
+              <span className="sr-only">Chi tiết</span>
+            </div>
+            <ul className="divide-y divide-line text-sm">
+              {rows.map((r) => {
+                const href = r.targetAttempt ? `/gv/bai-giao/${id}/bai-lam/${r.targetAttempt.id}` : null;
+                return (
+                  <li
+                    key={r.p.key}
+                    className={cx(
+                      'group relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 transition-colors md:grid-cols-[minmax(0,1fr)_7.5rem_5rem_5.5rem_8.5rem_1.25rem]',
+                      href && 'hover:bg-sunken/70 focus-within:bg-sunken/70',
+                    )}
+                  >
+                    <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <p className="font-medium">{r.p.full_name}</p>
+                        {href ? (
+                          <Link href={href} className="row-link truncate font-medium text-ink transition-colors group-hover:text-brand">
+                            {r.p.full_name}
+                          </Link>
+                        ) : (
+                          <p className="truncate font-medium">{r.p.full_name}</p>
+                        )}
                         {r.p.isGuest && <Badge>Khách</Badge>}
                         {r.p.outsider && <Badge tone="warn">Ngoài lớp</Badge>}
                       </div>
                       <p className="text-xs text-muted">
                         {r.p.isGuest ? 'Làm trực tiếp qua link' : r.p.username}
                       </p>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted sm:hidden">
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted md:hidden">
                         {r.status === 'done' ? <Badge tone="ok">Đã nộp{r.list.length > 1 ? ` · ${r.list.length} lượt` : ''}</Badge> : r.status === 'doing' ? <Badge tone="warn">Đang làm</Badge> : <Badge>Chưa làm</Badge>}
                         {r.list.length > 0 && <span className={r.leaves >= 3 ? 'font-semibold text-warn' : ''}>Rời trang {r.leaves}</span>}
                       </div>
-                    </td>
-                    <td className="hidden px-4 py-2.5 sm:table-cell">
+                    </div>
+
+                    <div className="hidden md:block">
                       {r.status === 'done' ? <Badge tone="ok">Đã nộp{r.list.length > 1 ? ` · ${r.list.length} lượt` : ''}</Badge> : r.status === 'doing' ? <Badge tone="warn">Đang làm</Badge> : <Badge>Chưa làm</Badge>}
-                    </td>
-                    <td className="num px-4 py-2.5 text-right">
-                      {r.best ? <Link href={`/gv/bai-giao/${id}/bai-lam/${r.best.id}`} className="grade-mark inline-flex min-h-10 items-center text-lg hover:underline">{fmtScore(r.best.score)}</Link> : <span className="text-muted">—</span>}
-                    </td>
-                    <td className={`num hidden px-4 py-2.5 text-right md:table-cell ${r.leaves >= 3 ? 'font-semibold text-warn' : 'text-muted'}`}>{r.list.length ? r.leaves : '—'}</td>
-                    <td className="num hidden px-4 py-2.5 text-muted md:table-cell">{r.last?.submitted_at ? fmtDateTime(r.last.submitted_at) : ''}</td>
-                  </tr>
-                ))}
-                {!rows.length && (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-muted">
-                      Chưa có học sinh nào làm bài. Hãy chép link bên cạnh gửi qua Zalo cho học sinh!
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                    </div>
+
+                    <div className="num flex items-center justify-end gap-1.5 text-right">
+                      {r.best ? <span className="grade-mark text-lg">{fmtScore(r.best.score)}</span> : <span className="text-muted">—</span>}
+                      {href && <ChevronRight className="h-4 w-4 text-muted/60 md:hidden" aria-hidden />}
+                    </div>
+
+                    <span className={cx('num hidden text-right md:block', r.leaves >= 3 ? 'font-semibold text-warn' : 'text-muted')}>
+                      {r.list.length ? r.leaves : '—'}
+                    </span>
+
+                    <span className="num hidden text-xs text-muted md:block">
+                      {r.last?.submitted_at ? fmtDateTime(r.last.submitted_at) : ''}
+                    </span>
+
+                    <span className="hidden justify-end md:flex">
+                      {href && <ChevronRight className="h-4 w-4 text-muted/60 transition-transform group-hover:translate-x-0.5 group-hover:text-brand" aria-hidden />}
+                    </span>
+                  </li>
+                );
+              })}
+              {!rows.length && (
+                <li className="px-4 py-8 text-center text-muted">
+                  Chưa có học sinh nào làm bài. Hãy chép link bên cạnh gửi qua Zalo cho học sinh!
+                </li>
+              )}
+            </ul>
           </div>
           <p className="text-xs text-muted">Số lần rời trang chỉ mang tính tham khảo: một số trình duyệt (trong Zalo, Messenger) không báo chính xác.</p>
         </div>

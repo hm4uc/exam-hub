@@ -50,7 +50,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
           {q ? 'Thử tìm bằng tên khác hoặc tên đăng nhập.' : 'Học sinh tự tạo tài khoản khi mở link bài kiểm tra bạn gửi.'}
         </Empty>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-line bg-surface">
+        <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-card">
           <div className="hidden grid-cols-[minmax(0,1fr)_11rem_9rem_17rem] gap-4 bg-sunken px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted lg:grid">
             <span>{teachers ? 'Giáo viên' : 'Học sinh'}</span><span>{teachers ? '' : 'Lớp'}</span><span>Tạo lúc</span><span className="sr-only">Thao tác</span>
           </div>

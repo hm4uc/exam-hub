@@ -3,10 +3,22 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 import { flushTracesNow, traceClient } from '@/lib/trace-client';
 
-/** Ghi nhận lỗi JS toàn cục, sự kiện mạng, nút Back và chuyển trang (nhẹ, không làm chậm trang). */
+const EXTENSION_RE = /(?:chrome|moz|safari|safari-web|edge|ms-browser)-extension:\/\/|webkit-masked-url:\/\/|extension:\/\/|\/executors\/\d+\.js/i;
+
+function isThirdPartyExtensionError(filename?: string, stack?: string, message?: string): boolean {
+  if (filename && EXTENSION_RE.test(filename)) return true;
+  if (stack && EXTENSION_RE.test(stack)) return true;
+  // Cross-origin opaque error without stack/filename (không thuộc nguồn ứng dụng)
+  if (message === 'Script error.' && !filename && !stack) return true;
+  return false;
+}
+
+/** Ghi nhận lỗi JS toàn cục của ứng dụng, sự kiện mạng, nút Back và chuyển trang.
+ *  Tự động bỏ qua lỗi từ tiện ích mở rộng (browser extension) và chống lặp lỗi trùng trong 15 giây. */
 export function TraceProvider() {
   const pathname = usePathname();
   const prevPath = useRef<string | null>(null);
+  const recentErrors = useRef<Map<string, number>>(new Map());
 
   // Theo dõi chuyển trang (bỏ qua các trang /admin để tránh tạo vòng lặp log)
   useEffect(() => {
@@ -26,17 +38,30 @@ export function TraceProvider() {
   }, [pathname]);
 
   useEffect(() => {
+    const shouldReport = (key: string) => {
+      const now = Date.now();
+      const last = recentErrors.current.get(key) ?? 0;
+      if (now - last < 15000) return false;
+      recentErrors.current.set(key, now);
+      if (recentErrors.current.size > 40) recentErrors.current.clear();
+      return true;
+    };
+
     const onError = (e: ErrorEvent) => {
+      const stack = e.error?.stack ? String(e.error.stack) : undefined;
+      if (isThirdPartyExtensionError(e.filename, stack, e.message)) return;
+      const msg = e.message || 'Unhandled error';
+      if (!shouldReport(`err:${msg}`)) return;
       traceClient({
         level: 'error',
         category: 'error',
         event: 'window_error',
-        message: e.message || 'Unhandled error',
+        message: msg,
         meta: {
           filename: e.filename?.slice(0, 200),
           lineno: e.lineno,
           colno: e.colno,
-          stack: e.error?.stack ? String(e.error.stack).slice(0, 800) : undefined,
+          stack: stack?.slice(0, 800),
         },
         urgent: true,
       });
@@ -44,13 +69,16 @@ export function TraceProvider() {
 
     const onRejection = (e: PromiseRejectionEvent) => {
       const reason = e.reason;
+      const stack = reason instanceof Error && reason.stack ? String(reason.stack) : undefined;
       const msg = reason instanceof Error ? reason.message : String(reason ?? 'Unhandled rejection');
+      if (isThirdPartyExtensionError(undefined, stack, msg)) return;
+      if (!shouldReport(`rej:${msg}`)) return;
       traceClient({
         level: 'error',
         category: 'error',
         event: 'unhandled_rejection',
         message: msg.slice(0, 400),
-        meta: reason instanceof Error && reason.stack ? { stack: reason.stack.slice(0, 800) } : undefined,
+        meta: stack ? { stack: stack.slice(0, 800) } : undefined,
         urgent: true,
       });
     };

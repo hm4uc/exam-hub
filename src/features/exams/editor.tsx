@@ -44,15 +44,15 @@ function QuestionCard({ q, index, scoring, locked }: { q: QRow; index: number; s
   });
 
   return (
-    <li className="rounded-xl border border-line bg-surface p-4 sm:p-5">
+    <li className="rounded-xl border border-line bg-surface p-4 shadow-card sm:p-5">
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <b>Câu {index + 1}</b>
         <Badge tone="brand">{TYPE_NAME[q.type]}</Badge>
         {q.part && <span className="text-xs text-muted">Phần {q.part}</span>}
         <span className="num text-xs text-muted">{String(pts).replace('.', ',')} điểm</span>
         <div className="ml-auto flex gap-1">
-          {!editing && <Button variant="ghost" className="min-h-8 px-2" onClick={() => { setEditing(true); setMsg(null); }}><Pencil className="h-4 w-4" aria-hidden />Sửa</Button>}
-          {!locked && !editing && <Button variant="ghost" className="min-h-8 px-2 text-pen hover:bg-pen-soft" onClick={remove} disabled={pending} aria-label={`Xoá câu ${index + 1}`}><Trash2 className="h-4 w-4" aria-hidden /></Button>}
+          {!editing && <Button variant="ghost" className="min-h-9 px-2.5" onClick={() => { setEditing(true); setMsg(null); }}><Pencil className="h-4 w-4" aria-hidden />Sửa</Button>}
+          {!locked && !editing && <Button variant="ghost" className="min-h-9 px-2.5 text-pen hover:bg-pen-soft" onClick={remove} disabled={pending} aria-label={`Xoá câu ${index + 1}`}><Trash2 className="h-4 w-4" aria-hidden /></Button>}
         </div>
       </div>
       {msg && <Alert tone={msg.ok ? 'ok' : 'pen'} className="mb-2">{msg.text}</Alert>}
@@ -124,7 +124,7 @@ export function ExamMeta({ id, title: t0, scoring: s0, status, count }: { id: st
   });
 
   return (
-    <section className="grid gap-3 rounded-xl border border-line bg-surface p-4">
+    <section className="grid gap-3 rounded-xl border border-line bg-surface p-4 shadow-card">
       <h2 className="font-semibold">Thông tin đề · <span className="num font-normal text-muted">{count} câu</span></h2>
       {msg && <Alert tone={msg.ok ? 'ok' : 'pen'}>{msg.text}</Alert>}
       <Field label="Tên đề" htmlFor="exam-title"><Input id="exam-title" value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
