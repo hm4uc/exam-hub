@@ -1,36 +1,55 @@
 'use client';
-import Link from 'next/link';
-import { useActionState, useMemo } from 'react';
+import { useActionState, useMemo, useState } from 'react';
 import { DateTimeField } from '@/components/datetime-field';
 import { Alert, Button, Field, Input, Select } from '@/components/ui';
 import { createAssignment, type AsgState } from './actions';
 
 export function AssignForm({ examId, examTitle, classes }: { examId: string; examTitle: string; classes: { id: string; name: string }[] }) {
   const [state, action, pending] = useActionState<AsgState, FormData>(createAssignment, undefined);
-  const { opens, closes } = useMemo(() => {
-    const o = new Date(); o.setSeconds(0, 0);
-    const c = new Date(o); c.setDate(c.getDate() + 7); c.setHours(22, 0, 0, 0);
-    return { opens: o, closes: c };
+  const [classId, setClassId] = useState('');
+  const opens = useMemo(() => {
+    const o = new Date();
+    o.setSeconds(0, 0);
+    return o;
   }, []);
-
-  if (!classes.length) {
-    return <Alert tone="warn">Chưa có lớp nào. <Link href="/gv/lop" className="font-semibold underline">Tạo lớp</Link> trước rồi quay lại giao bài.</Alert>;
-  }
 
   return (
     <form action={action} className="grid gap-5">
       <input type="hidden" name="exam_id" value={examId} />
       {state?.error && <Alert>{state.error}</Alert>}
       <section className="grid gap-4 rounded-xl border border-line bg-surface p-4 sm:grid-cols-2 sm:p-5">
-        <Field label="Giao cho lớp" htmlFor="class_id">
-          <Select id="class_id" name="class_id" required defaultValue="">
-            <option value="" disabled>Chọn lớp…</option>
+        <Field
+          label="Gắn vào lớp (không bắt buộc)"
+          htmlFor="class_id"
+          hint="Không chọn lớp = link mở tự do cho mọi học sinh. Gắn lớp để tiện quản lý và đối chiếu sĩ số."
+        >
+          <Select id="class_id" name="class_id" value={classId} onChange={(e) => setClassId(e.target.value)}>
+            <option value="">Không gắn lớp (Link tự do)</option>
             {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
         </Field>
-        <Field label="Tên bài hiện cho học sinh" htmlFor="title"><Input id="title" name="title" defaultValue={examTitle} required maxLength={200} /></Field>
+        <Field label="Tên bài hiện cho học sinh" htmlFor="title">
+          <Input id="title" name="title" defaultValue={examTitle} required maxLength={200} />
+        </Field>
+        {classId && (
+          <div className="sm:col-span-2">
+            <label className="flex min-h-10 items-start gap-2.5 text-sm">
+              <input type="checkbox" name="restrict_to_class" className="mt-0.5 h-5 w-5 shrink-0 accent-[rgb(var(--brand))]" />
+              <span>
+                <span className="font-medium">Chỉ cho học sinh đăng nhập đúng lớp này</span>
+                <span className="block text-xs text-muted">Mặc định tắt: ai có link (kể cả chưa đăng nhập) cũng làm được; lớp chỉ để quản lý và đối chiếu sĩ số.</span>
+              </span>
+            </label>
+          </div>
+        )}
         <DateTimeField name="opens_at" label="Mở lúc" initial={opens} />
-        <DateTimeField name="closes_at" label="Đóng lúc" initial={closes} hint="Sau giờ này không ai bắt đầu hay lưu bài được nữa." />
+        <DateTimeField
+          name="closes_at"
+          label="Đóng lúc (không bắt buộc)"
+          initial={null}
+          required={false}
+          hint="Để trống = mở đến khi bạn bấm đóng thủ công."
+        />
         <Field label="Thời gian làm (phút)" htmlFor="duration_minutes">
           <Input id="duration_minutes" name="duration_minutes" type="number" min={1} max={600} defaultValue={45} required inputMode="numeric" />
         </Field>
@@ -50,9 +69,9 @@ export function AssignForm({ examId, examTitle, classes }: { examId: string; exa
           <Input id="access_password" name="access_password" maxLength={40} autoComplete="off" />
         </Field>
         <Field label="Học sinh được xem" htmlFor="result_mode">
-          <Select id="result_mode" name="result_mode" defaultValue="score">
-            <option value="score">Chỉ điểm</option>
+          <Select id="result_mode" name="result_mode" defaultValue="score_answers">
             <option value="score_answers">Điểm, đáp án và lời giải</option>
+            <option value="score">Chỉ điểm</option>
             <option value="none">Không xem gì</option>
           </Select>
         </Field>
@@ -63,7 +82,9 @@ export function AssignForm({ examId, examTitle, classes }: { examId: string; exa
           </Select>
         </Field>
       </section>
-      <Button type="submit" disabled={pending} className="min-h-11 w-full sm:w-auto sm:justify-self-start">{pending ? 'Đang giao…' : 'Giao bài và lấy link'}</Button>
+      <Button type="submit" disabled={pending} className="min-h-11 w-full sm:w-auto sm:justify-self-start">
+        {pending ? 'Đang tạo…' : 'Tạo link làm bài'}
+      </Button>
     </form>
   );
 }

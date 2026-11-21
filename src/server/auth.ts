@@ -3,9 +3,11 @@ import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { supabaseServer } from '@/server/supabase/server';
 
+export type UserRole = 'admin' | 'teacher' | 'student';
+
 export interface Me {
   id: string;
-  role: 'teacher' | 'student';
+  role: UserRole;
   username: string;
   full_name: string;
   class_id: string | null;
@@ -34,20 +36,32 @@ async function requireUser(): Promise<Me> {
   const me = await getMe();
   if (!me) redirect('/dang-nhap');
   if (me.is_locked) redirect('/dang-nhap?locked=1');
-  if (me.must_change_password) redirect('/doi-mat-khau?bat-buoc=1');
+  return me;
+}
+
+export async function requireAdmin(): Promise<Me> {
+  const me = await requireUser();
+  if (me.role !== 'admin') redirect(me.role === 'teacher' ? '/gv' : '/');
   return me;
 }
 
 export async function requireTeacher(): Promise<Me> {
   const me = await requireUser();
-  if (me.role !== 'teacher') redirect('/');
+  if (me.role !== 'teacher' && me.role !== 'admin') redirect('/');
   return me;
 }
 
 export async function requireStudent(): Promise<Me> {
   const me = await requireUser();
+  if (me.role === 'admin') redirect('/admin');
   if (me.role !== 'student') redirect('/gv');
   return me;
+}
+
+export function homePathFor(role: UserRole): string {
+  if (role === 'admin') return '/admin';
+  if (role === 'teacher') return '/gv';
+  return '/';
 }
 
 export { RPC_MESSAGES as RPC_ERRORS, rpcMessage } from '@/lib/rpc-messages';

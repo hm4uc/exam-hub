@@ -82,8 +82,8 @@ describe('schema + RPC', () => {
   });
 
   it('giao bài + bắt đầu làm (xếp tạm vào lớp)', async () => {
-    code = (await one(`insert into public.assignments (exam_id, class_id, title, opens_at, closes_at, duration_minutes, access_password)
-             values ($1,$2,'Kiểm tra 15 phút', now() - interval '1 minute', now() + interval '1 day', 15, 'abc') returning code`, [exam, classA])).code;
+    code = (await one(`insert into public.assignments (exam_id, class_id, title, opens_at, closes_at, duration_minutes, access_password, restrict_to_class)
+             values ($1,$2,'Kiểm tra 15 phút', now() - interval '1 minute', now() + interval '1 day', 15, 'abc', true) returning code`, [exam, classA])).code;
     expect(code).toMatch(/^[a-z2-9]{6}$/);
 
     await db.exec('set role authenticated');
@@ -91,6 +91,7 @@ describe('schema + RPC', () => {
     const info = (await one(`select public.assignment_info($1) j`, [code.toUpperCase()])).j;
     expect(info.state).toBe('open');
     expect(info.has_password).toBe(true);
+    expect(info.restrict_to_class).toBe(true);
     await expect(db.query(`select public.start_attempt($1, 'sai')`, [code])).rejects.toThrow(/WRONG_PASSWORD/);
     const st = (await one(`select public.start_attempt($1, 'abc') j`, [code])).j;
     attempt = st.attempt_id;
@@ -104,10 +105,17 @@ describe('schema + RPC', () => {
     expect((await one(`select class_id from public.profiles where id=$1`, [s1])).class_id).toBe(classA);
   });
 
-  it('học sinh lớp khác bị chặn', async () => {
+  it('bài giao giới hạn lớp: học sinh lớp khác & khách bị chặn', async () => {
     await db.exec('set role authenticated');
     await as(s2);
     await expect(db.query(`select public.start_attempt($1, 'abc')`, [code])).rejects.toThrow(/WRONG_CLASS/);
+    await db.exec('reset role');
+
+    await db.exec('set role anon');
+    await as(null);
+    const info = (await one(`select public.assignment_info($1, 'guest-token-1234') j`, [code])).j;
+    expect(info.login_required).toBe(true);
+    await expect(db.query(`select public.start_attempt($1, 'abc', 'guest-token-1234', 'Khách')`, [code])).rejects.toThrow(/LOGIN_REQUIRED/);
     await db.exec('reset role');
   });
 
@@ -181,9 +189,96 @@ describe('schema + RPC', () => {
     await db.exec("reset role");
   });
 
-  it('anon không gọi được RPC', async () => {
+  it('link tự do không lớp, không giờ đóng: khách không đăng nhập làm bài + tên mặc định + bảo mật guest_key', async () => {
+    const qcode = (await one(`insert into public.assignments (exam_id, class_id, title, opens_at, closes_at, duration_minutes, result_mode, is_quick_link)
+      values ($1, null, 'Đề mở tự do', now() - interval '1 minute', null, 45, 'score_answers', true) returning code`, [exam])).code;
+
+    // Khách 1 không nhập tên → tự gán "Học sinh #1"
     await db.exec('set role anon');
+    await as(null);
+    const info1 = (await one(`select public.assignment_info($1, 'guest-aaaa-1111') j`, [qcode])).j;
+    expect(info1.state).toBe('open');
+    expect(info1.class_name).toBeNull();
+    expect(info1.closes_at).toBeNull();
+    expect(info1.login_required).toBe(false);
+
+    const st1 = (await one(`select public.start_attempt($1, null, 'guest-aaaa-1111', '') j`, [qcode])).j;
+    expect(st1.guest_name).toBe('Học sinh #1');
+    expect(st1.questions).toHaveLength(4);
+
+    // Khách khác không sửa/xem được bài của Khách 1 dù biết attempt_id
+    await expect(db.query(`select public.save_answers($1, '{}', 0, 'guest-other-9999')`, [st1.attempt_id])).rejects.toThrow(/NOT_FOUND/);
+    await expect(db.query(`select public.submit_attempt($1, 'guest-other-9999')`, [st1.attempt_id])).rejects.toThrow(/NOT_FOUND/);
+
+    // Khách 1 lưu và nộp bài bình thường
+    await db.query(`select public.save_answers($1, $2, 1, 'guest-aaaa-1111')`, [st1.attempt_id, JSON.stringify({ [q.m1]: 'B', [q.m2]: 'A' })]);
+    const res1 = (await one(`select public.submit_attempt($1, 'guest-aaaa-1111') j`, [st1.attempt_id])).j;
+    expect(res1.is_guest).toBe(true);
+    expect(res1.guest_name).toBe('Học sinh #1');
+    expect(Number(res1.score)).toBeGreaterThan(0);
+
+    // Khách 2 nhập tên tuỳ chọn
+    const st2 = (await one(`select public.start_attempt($1, null, 'guest-bbbb-2222', 'Minh Anh') j`, [qcode])).j;
+    expect(st2.guest_name).toBe('Minh Anh');
+
+    // Khách 3 bỏ trống tên → "Học sinh #3"
+    const st3 = (await one(`select public.start_attempt($1, null, 'guest-cccc-3333', null) j`, [qcode])).j;
+    expect(st3.guest_name).toBe('Học sinh #3');
+    await db.exec('reset role');
+
+    // Bài gắn lớp nhưng restrict_to_class = false (mặc định): học sinh lớp khác & khách vẫn làm được
+    const openClassCode = (await one(`insert into public.assignments (exam_id, class_id, title, opens_at, closes_at, duration_minutes)
+      values ($1, $2, 'Đề lớp 10A1 mở rộng', now() - interval '1 minute', null, 30) returning code`, [exam, classA])).code;
+    await db.exec('set role authenticated');
+    await as(s2); // thuộc classB
+    const stS2 = (await one(`select public.start_attempt($1) j`, [openClassCode])).j;
+    expect(stS2.attempt_id).toBeTruthy();
+    await db.exec('reset role');
+    // s2 vẫn giữ nguyên lớp B
+    expect((await one(`select class_id from public.profiles where id=$1`, [s2])).class_id).toBe(classB);
+
+    await db.exec('set role anon');
+    await as(null);
+    const stG = (await one(`select public.start_attempt($1, null, 'guest-dddd-4444', 'Bạn ngoài lớp') j`, [openClassCode])).j;
+    expect(stG.guest_name).toBe('Bạn ngoài lớp');
+    await db.exec('reset role');
+
+    // Giáo viên xem assignment_info không bị lỗi NOT_STUDENT
+    await db.exec('set role authenticated');
+    await as(teacher);
+    const tInfo = (await one(`select public.assignment_info($1) j`, [qcode])).j;
+    expect(tInfo.viewer_role).toBe('teacher');
+    await db.exec('reset role');
+  });
+
+  it('vai trò admin & RLS bảng trace_events', async () => {
+    const adm = await mkUser('sysadmin', 'Quản trị');
+    await db.query(`update public.profiles set role = 'admin' where id = $1`, [adm]);
+    await db.query(`insert into public.trace_events (level, category, event, message) values ('error', 'exam', 'save_failed', 'Mất mạng')`);
+
+    // Giáo viên & học sinh & anon KHÔNG đọc được trace_events
+    await db.exec('set role authenticated');
+    await as(teacher);
+    expect((await db.query(`select * from public.trace_events`)).rows).toHaveLength(0);
+    await expect(db.query(`select public.purge_old_traces(7)`)).rejects.toThrow(/FORBIDDEN/);
+
+    await as(s1);
+    expect((await db.query(`select * from public.trace_events`)).rows).toHaveLength(0);
+
+    // Admin đọc và dọn được trace_events + vẫn có quyền teacher
+    await as(adm);
+    expect((await db.query(`select * from public.trace_events`)).rows).toHaveLength(1);
+    expect((await one(`select public.is_admin() ok`)).ok).toBe(true);
+    expect((await one(`select public.is_teacher() ok`)).ok).toBe(true);
+    expect((await one(`select public.purge_old_traces(30) n`)).n).toBe(0);
+    await db.exec('reset role');
+  });
+
+  it('anon không gọi được RPC riêng tư', async () => {
+    await db.exec('set role anon');
+    await as(null);
     await expect(db.query(`select public.my_assignments()`)).rejects.toThrow(/permission denied/);
+    await expect(db.query(`select public.purge_old_traces(7)`)).rejects.toThrow(/permission denied/);
     await db.exec('reset role');
   });
 });

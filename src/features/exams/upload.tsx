@@ -126,7 +126,7 @@ export function UploadClient() {
           {parsed.errors.map((e) => <Alert key={e}>{e}</Alert>)}
           <div className="grid gap-4 rounded-xl border border-line bg-surface p-4 sm:grid-cols-[1fr_auto] sm:items-end">
             <Field label="Tên đề" htmlFor="title"><Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} /></Field>
-            <Button onClick={save} disabled={!canSave}>{busy === 'save' ? 'Đang lưu…' : `Lưu đề (${included} câu)`}</Button>
+            <Button onClick={save} disabled={!canSave}>{busy === 'save' ? 'Đang lưu & tạo link…' : `Lưu đề & tạo link (${included} câu)`}</Button>
             <div className="flex flex-wrap gap-2 text-sm sm:col-span-2">
               <Badge>{items.length} câu tìm thấy</Badge>
               {(['mcq', 'tf', 'short'] as const).map((t) => { const n = items.filter((i) => i.q.type === t).length; return n ? <Badge key={t}>{TYPE_NAME[t]}: {n}</Badge> : null; })}

@@ -15,12 +15,13 @@ export default async function AttemptDetail({ params }: { params: Promise<{ id: 
   const supabase = await supabaseServer();
   const { data: t } = await supabase
     .from('attempts')
-    .select('id, attempt_no, started_at, submitted_at, question_order, answers, score, score_raw, score_max, per_question, tab_leaves, profiles(full_name, username), assignments(title, exam_id)')
+    .select('id, attempt_no, started_at, submitted_at, question_order, answers, score, score_raw, score_max, per_question, tab_leaves, guest_name, profiles(full_name, username), assignments(title, exam_id)')
     .eq('id', aid)
     .maybeSingle();
   if (!t) notFound();
   const asg = t.assignments as unknown as { title: string; exam_id: string };
-  const st = t.profiles as unknown as { full_name: string; username: string };
+  const st = t.profiles as unknown as { full_name: string; username: string } | null;
+  const studentLabel = st?.full_name ?? t.guest_name ?? 'Học sinh (Khách)';
   const { data: qs } = await supabase.from('questions').select('id, type, stem_html, choices, answer').eq('exam_id', asg.exam_id);
   const byId = new Map((qs ?? []).map((q) => [q.id, q]));
   const order = (t.question_order as string[]).map((qid) => byId.get(qid)).filter(Boolean) as NonNullable<ReturnType<typeof byId.get>>[];
@@ -29,7 +30,8 @@ export default async function AttemptDetail({ params }: { params: Promise<{ id: 
 
   return (
     <>
-      <PageTitle title={st.full_name} back={{ href: `/gv/bai-giao/${id}`, label: asg.title }}>
+      <PageTitle title={studentLabel} back={{ href: `/gv/bai-giao/${id}`, label: asg.title }}>
+        {!st && <Badge className="self-center">Khách (không đăng nhập)</Badge>}
         <DeleteAttemptButton id={aid} back={`/gv/bai-giao/${id}`} label="Xoá bài làm (cho làm lại)" />
       </PageTitle>
       <div className="mb-5 flex flex-wrap items-end gap-x-8 gap-y-2 rounded-xl border border-line bg-surface p-4">

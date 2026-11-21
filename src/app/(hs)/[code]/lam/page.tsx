@@ -7,6 +7,7 @@ export const metadata: Metadata = { title: 'Làm bài' };
 
 export default async function TakePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
-  if (!isCode(code)) notFound();
-  return <ExamRunner code={code} />;
+  const normalized = code.toLowerCase();
+  if (!isCode(normalized)) notFound();
+  return <ExamRunner code={normalized} />;
 }

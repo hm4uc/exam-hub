@@ -2,10 +2,11 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
-import { requireTeacher } from '@/server/auth';
 import { QuestionInputSchema, toQuestionRow } from '@/domain/exam/question-io';
 import type { QuestionInput, Scoring } from '@/domain/exam/types';
+import { requireTeacher } from '@/server/auth';
 import { supabaseServer } from '@/server/supabase/server';
+import { recordTrace } from '@/server/trace';
 
 export type ActionResult = { ok: true; id?: string; message?: string } | { ok: false; error: string };
 
@@ -16,11 +17,15 @@ const CreateSchema = z.object({
 });
 
 export async function createExam(input: { title: string; sourcePath: string | null; questions: QuestionInput[] }): Promise<ActionResult> {
-  await requireTeacher();
+  const me = await requireTeacher();
   const parsed = CreateSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const supabase = await supabaseServer();
-  const { data: exam, error } = await supabase.from('exams').insert({ title: parsed.data.title, source_path: parsed.data.sourcePath }).select('id').single();
+  const { data: exam, error } = await supabase
+    .from('exams')
+    .insert({ title: parsed.data.title, source_path: parsed.data.sourcePath, status: 'published' })
+    .select('id')
+    .single();
   if (error || !exam) return { ok: false, error: 'Chưa lưu được đề. Hãy thử lại.' };
   const rows = parsed.data.questions.map((q) => ({ ...toQuestionRow(q), exam_id: exam.id }));
   const { error: qErr } = await supabase.from('questions').insert(rows);
@@ -28,6 +33,42 @@ export async function createExam(input: { title: string; sourcePath: string | nu
     await supabase.from('exams').delete().eq('id', exam.id);
     return { ok: false, error: 'Chưa lưu được câu hỏi. Hãy thử lại.' };
   }
+
+  // Tự động tạo sẵn 1 link làm bài nhanh (mở ngay, tự do không cần lớp, 45 phút, xem điểm + đáp án)
+  const { data: quick } = await supabase
+    .from('assignments')
+    .insert({
+      exam_id: exam.id,
+      class_id: null,
+      title: parsed.data.title,
+      opens_at: new Date().toISOString(),
+      closes_at: null,
+      duration_minutes: 45,
+      max_attempts: 1,
+      shuffle_questions: true,
+      shuffle_choices: true,
+      access_password: null,
+      result_mode: 'score_answers',
+      result_release: 'on_submit',
+      restrict_to_class: false,
+      is_quick_link: true,
+    })
+    .select('id, code')
+    .maybeSingle();
+
+  void recordTrace({
+    level: 'info',
+    category: 'admin',
+    event: 'exam_created',
+    user_id: me.id,
+    username: me.username,
+    assignment_code: quick?.code ?? null,
+    path: '/gv/de/moi',
+    message: `Tạo đề "${parsed.data.title}" (${rows.length} câu)`,
+    meta: { exam_id: exam.id, quick_assignment_id: quick?.id ?? null },
+  });
+
+  revalidatePath('/gv');
   revalidatePath('/gv/de');
   return { ok: true, id: exam.id };
 }
@@ -49,8 +90,12 @@ export async function deleteQuestion(id: string): Promise<ActionResult> {
   const supabase = await supabaseServer();
   const { data: q } = await supabase.from('questions').select('exam_id').eq('id', id).single();
   if (!q) return { ok: false, error: 'Không tìm thấy câu hỏi.' };
-  const { count } = await supabase.from('assignments').select('id', { count: 'exact', head: true }).eq('exam_id', q.exam_id);
-  if (count) return { ok: false, error: 'Đề đã được giao nên không xoá câu được (học sinh đã nhận đề). Bạn vẫn sửa nội dung, đáp án được.' };
+  const { data: asgs } = await supabase.from('assignments').select('id').eq('exam_id', q.exam_id);
+  const asgIds = (asgs ?? []).map((a) => a.id);
+  if (asgIds.length) {
+    const { count } = await supabase.from('attempts').select('id', { count: 'exact', head: true }).in('assignment_id', asgIds);
+    if (count) return { ok: false, error: 'Đề đã có học sinh làm nên không xoá câu được. Bạn vẫn sửa nội dung, đáp án được.' };
+  }
   await supabase.from('questions').delete().eq('id', id);
   revalidatePath(`/gv/de/${q.exam_id}`);
   return { ok: true };
@@ -84,11 +129,18 @@ export async function setExamStatus(id: string, status: 'draft' | 'published'): 
 export async function deleteExam(id: string): Promise<ActionResult> {
   await requireTeacher();
   const supabase = await supabaseServer();
-  const { count } = await supabase.from('assignments').select('id', { count: 'exact', head: true }).eq('exam_id', id);
-  if (count) return { ok: false, error: `Đề đang được dùng ở ${count} bài giao. Xoá các bài giao trước.` };
+  const { data: asgs } = await supabase.from('assignments').select('id').eq('exam_id', id);
+  const asgIds = (asgs ?? []).map((a) => a.id);
+  if (asgIds.length) {
+    const { count } = await supabase.from('attempts').select('id', { count: 'exact', head: true }).in('assignment_id', asgIds);
+    if (count) return { ok: false, error: `Đề đang có ${count} bài làm của học sinh. Hãy xoá bài giao trước nếu chắc chắn muốn xoá đề.` };
+    // Chưa có ai làm → dọn luôn các link trống gắn với đề này để xoá đề thuận tiện
+    await supabase.from('assignments').delete().in('id', asgIds);
+  }
   const { data: ex } = await supabase.from('exams').select('source_path').eq('id', id).single();
   await supabase.from('exams').delete().eq('id', id);
   if (ex?.source_path) await supabase.storage.from('exam-files').remove([ex.source_path]);
+  revalidatePath('/gv');
   revalidatePath('/gv/de');
   redirect('/gv/de');
 }

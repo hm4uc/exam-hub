@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Be_Vietnam_Pro } from 'next/font/google';
 import { DropGuard } from '@/components/drop-guard';
 import { THEME_BOOT, THEME_COLOR } from '@/components/theme';
+import { TraceProvider } from '@/components/trace-provider';
 import './globals.css';
 
 const sans = Be_Vietnam_Pro({
@@ -36,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Trình duyệt quá cũ (trước Safari 15.4 / Chrome 92) → trang hướng dẫn */}
         <script dangerouslySetInnerHTML={{ __html: "if(!Array.prototype.at&&location.pathname!=='/thiet-bi-chua-ho-tro')location.replace('/thiet-bi-chua-ho-tro')" }} />
       </head>
-      <body className="min-h-dvh font-sans"><DropGuard />{children}</body>
+      <body className="min-h-dvh font-sans"><DropGuard /><TraceProvider />{children}</body>
     </html>
   );
 }

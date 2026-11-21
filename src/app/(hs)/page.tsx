@@ -1,14 +1,15 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import { Alert, Badge, Empty } from '@/components/ui';
-import { rpcMessage } from '@/server/auth';
+import { getMe, homePathFor, rpcMessage } from '@/server/auth';
 import { fmtDateTime, fmtScore } from '@/lib/format';
 import { supabaseServer } from '@/server/supabase/server';
 
 export const metadata: Metadata = { title: 'Bài của tôi' };
 
 interface Item {
-  code: string; title: string; opens_at: string; closes_at: string; duration_minutes: number;
+  code: string; title: string; opens_at: string; closes_at: string | null; duration_minutes: number;
   state: 'open' | 'upcoming' | 'closed' | 'no_attempts_left' | 'in_progress'; best_score: number | null; last_attempt_id: string | null;
 }
 
@@ -21,6 +22,11 @@ const STATE: Record<Item['state'], { label: string; tone: 'brand' | 'neutral' | 
 };
 
 export default async function StudentHome() {
+  const me = await getMe();
+  if (!me) redirect('/dang-nhap');
+  if (me.is_locked) redirect('/dang-nhap?locked=1');
+  if (me.role !== 'student') redirect(homePathFor(me.role));
+
   const supabase = await supabaseServer();
   const { data, error } = await supabase.rpc('my_assignments');
   const res = data as { class_name: string | null; items: Item[] } | null;
@@ -35,8 +41,8 @@ export default async function StudentHome() {
     <main className="mx-auto max-w-3xl px-4 py-6">
       <h1 className="text-2xl font-bold tracking-tight">Bài của tôi</h1>
       {error && <Alert className="mt-4">{rpcMessage(error)}</Alert>}
-      {!res?.class_name && !error && (
-        <Alert tone="warn" className="mt-4">Bạn chưa được xếp lớp. Mở đường link bài kiểm tra thầy cô gửi để vào làm, hoặc nhờ thầy cô xếp lớp.</Alert>
+      {!res?.class_name && !items.length && !error && (
+        <Alert tone="neutral" className="mt-4">Mở đường link bài kiểm tra thầy cô gửi để vào làm bài ngay. Các bài bạn làm sẽ lưu tại đây.</Alert>
       )}
       {res?.class_name && !items.length && (
         <div className="mt-6"><Empty title="Chưa có bài nào">Khi thầy cô giao bài cho lớp {res.class_name}, bài sẽ hiện ở đây.</Empty></div>
@@ -54,7 +60,11 @@ export default async function StudentHome() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold">{i.title}</p>
                       <p className="mt-0.5 text-sm text-muted">
-                        {i.state === 'upcoming' ? `Mở lúc ${fmtDateTime(i.opens_at)}` : `Hạn ${fmtDateTime(i.closes_at)}`} · {i.duration_minutes} phút
+                        {i.state === 'upcoming'
+                          ? `Mở lúc ${fmtDateTime(i.opens_at)}`
+                          : i.closes_at
+                            ? `Hạn ${fmtDateTime(i.closes_at)}`
+                            : 'Mở tự do'} · {i.duration_minutes} phút
                       </p>
                     </div>
                     {i.best_score != null ? (

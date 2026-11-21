@@ -11,8 +11,18 @@ export default async function TeacherHome() {
   const supabase = await supabaseServer();
   const nowIso = new Date().toISOString();
   const [{ data: open }, { data: recent }, { count: unassigned }, { count: examCount }] = await Promise.all([
-    supabase.from('assignments').select('id, title, code, closes_at, opens_at, classes(name), attempts(count)').lte('opens_at', nowIso).gt('closes_at', nowIso).order('closes_at'),
-    supabase.from('assignments').select('id, title, closes_at, opens_at, classes(name)').or(`closes_at.lte.${nowIso},opens_at.gt.${nowIso}`).order('opens_at', { ascending: false }).limit(8),
+    supabase
+      .from('assignments')
+      .select('id, title, code, closes_at, opens_at, classes(name), attempts(count)')
+      .lte('opens_at', nowIso)
+      .or(`closes_at.is.null,closes_at.gt.${nowIso}`)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('assignments')
+      .select('id, title, closes_at, opens_at, classes(name)')
+      .or(`closes_at.lte.${nowIso},opens_at.gt.${nowIso}`)
+      .order('opens_at', { ascending: false })
+      .limit(8),
     supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'student').is('class_id', null),
     supabase.from('exams').select('id', { count: 'exact', head: true }),
   ]);
@@ -29,7 +39,7 @@ export default async function TeacherHome() {
         </p>
       )}
       {!examCount && (
-        <div className="mb-6"><Empty title="Bắt đầu bằng một đề Word">Tải đề lên → soát câu hỏi và đáp án → giao cho lớp → gửi link qua Zalo cho học sinh.</Empty></div>
+        <div className="mb-6"><Empty title="Bắt đầu bằng một đề Word">Tải đề lên → soát câu hỏi và đáp án → chép link gửi ngay qua Zalo cho học sinh làm bài.</Empty></div>
       )}
       <section>
         <h2 className="mb-3 text-base font-semibold">Đang mở</h2>
@@ -37,17 +47,22 @@ export default async function TeacherHome() {
           <p className="rounded-xl border border-dashed border-line px-4 py-6 text-center text-sm text-muted">Không có bài nào đang mở.</p>
         ) : (
           <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
-            {open.map((a) => (
-              <li key={a.id}>
-                <Link href={`/gv/bai-giao/${a.id}`} className="flex flex-wrap items-center gap-3 px-4 py-3 hover:bg-sunken">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold">{a.title}</p>
-                    <p className="text-sm text-muted">Lớp {cls(a.classes)} · đóng {fmtDateTime(a.closes_at)}</p>
-                  </div>
-                  <Badge tone="brand" className="num">{(a.attempts as unknown as { count: number }[])[0]?.count ?? 0} lượt làm</Badge>
-                </Link>
-              </li>
-            ))}
+            {open.map((a) => {
+              const className = cls(a.classes);
+              return (
+                <li key={a.id}>
+                  <Link href={`/gv/bai-giao/${a.id}`} className="flex flex-wrap items-center gap-3 px-4 py-3 hover:bg-sunken">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold">{a.title}</p>
+                      <p className="text-sm text-muted">
+                        {className ? `Lớp ${className}` : 'Link tự do'} · {a.closes_at ? `đóng ${fmtDateTime(a.closes_at)}` : 'mở tự do'}
+                      </p>
+                    </div>
+                    <Badge tone="brand" className="num">{(a.attempts as unknown as { count: number }[])[0]?.count ?? 0} lượt làm</Badge>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
@@ -55,17 +70,20 @@ export default async function TeacherHome() {
         <section className="mt-8">
           <h2 className="mb-3 text-base font-semibold">Sắp mở và đã đóng</h2>
           <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
-            {recent.map((a) => (
-              <li key={a.id}>
-                <Link href={`/gv/bai-giao/${a.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-sunken">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{a.title}</p>
-                    <p className="text-sm text-muted">Lớp {cls(a.classes)}</p>
-                  </div>
-                  {new Date(a.opens_at) > new Date() ? <Badge>Mở {fmtDateTime(a.opens_at)}</Badge> : <Badge tone="neutral">Đã đóng</Badge>}
-                </Link>
-              </li>
-            ))}
+            {recent.map((a) => {
+              const className = cls(a.classes);
+              return (
+                <li key={a.id}>
+                  <Link href={`/gv/bai-giao/${a.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-sunken">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{a.title}</p>
+                      <p className="text-sm text-muted">{className ? `Lớp ${className}` : 'Link tự do'}</p>
+                    </div>
+                    {new Date(a.opens_at) > new Date() ? <Badge>Mở {fmtDateTime(a.opens_at)}</Badge> : <Badge tone="neutral">Đã đóng</Badge>}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}

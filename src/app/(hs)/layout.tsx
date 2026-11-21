@@ -1,14 +1,10 @@
-import { InAppHint } from '@/components/inapp-hint';
-import { AppHeader } from '@/components/shell/app-header';
-import { requireStudent } from '@/server/auth';
+import { StudentShell } from '@/components/shell/student-shell';
+import { getMe } from '@/server/auth';
 
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
-  const me = await requireStudent();
-  return (
-    <>
-      <AppHeader home="/" width="max-w-3xl" user={{ name: me.full_name, sub: me.class_name ? `Lớp ${me.class_name}` : 'Chưa xếp lớp' }} />
-      <InAppHint />
-      {children}
-    </>
-  );
+  const me = await getMe();
+  const user = me && !me.is_locked
+    ? { full_name: me.full_name, role: me.role, class_name: me.class_name, must_change_password: me.must_change_password }
+    : null;
+  return <StudentShell user={user}>{children}</StudentShell>;
 }

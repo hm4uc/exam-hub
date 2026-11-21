@@ -17,7 +17,7 @@ export default async function AssignPage({ params }: { params: Promise<{ id: str
   if (!exam) notFound();
   return (
     <div className="mx-auto max-w-3xl">
-      <PageTitle title="Giao bài" back={{ href: `/gv/de/${id}`, label: exam.title }} />
+      <PageTitle title="Tạo link làm bài" back={{ href: `/gv/de/${id}`, label: exam.title }} />
       <AssignForm examId={exam.id} examTitle={exam.title} classes={classes ?? []} />
     </div>
   );

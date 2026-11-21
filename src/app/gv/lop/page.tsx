@@ -25,7 +25,7 @@ export default async function ClassesPage() {
       )}
       <div className="mt-5">
         {!classes?.length ? (
-          <Empty title="Chưa có lớp nào">Tạo lớp rồi giao bài cho lớp. Học sinh đăng ký qua link bài sẽ tự vào lớp đó.</Empty>
+          <Empty title="Chưa có lớp nào">Lớp là tùy chọn để quản lý sĩ số và gom nhóm bài giao — không tạo lớp bạn vẫn tạo đề và gửi link cho học sinh làm ngay được.</Empty>
         ) : (
           <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
             {classes.map((c) => (

@@ -8,6 +8,7 @@ import { requireTeacher } from '@/server/auth';
 import { supabaseAdmin } from '@/server/supabase/admin';
 import { usernameToEmail } from '@/server/supabase/env';
 import { supabaseServer } from '@/server/supabase/server';
+import { recordTrace } from '@/server/trace';
 
 export type Res = { ok: true; message?: string; password?: string } | { ok: false; error: string };
 
@@ -75,15 +76,17 @@ export async function updateAccount(id: string, _: unknown, form: FormData): Pro
   if (id === me.id && role !== 'teacher') return { ok: false, error: 'Bạn không thể tự bỏ quyền giáo viên của mình.' };
 
   const admin = supabaseAdmin();
-  const { data: cur } = await admin.from('profiles').select('username').eq('id', id).maybeSingle();
+  const { data: cur } = await admin.from('profiles').select('username, role').eq('id', id).maybeSingle();
   if (!cur) return { ok: false, error: 'Không tìm thấy tài khoản.' };
+  if (cur.role === 'admin' && me.role !== 'admin') return { ok: false, error: 'Không thể sửa tài khoản quản trị.' };
+  const nextRole = cur.role === 'admin' ? 'admin' : role;
   if (username !== cur.username) {
     if (await usernameTaken(username, id)) return { ok: false, error: `Tên đăng nhập "${username}" đã có người dùng.` };
     const { error } = await admin.auth.admin.updateUserById(id, { email: usernameToEmail(username), email_confirm: true, user_metadata: { username } });
     if (error) return { ok: false, error: 'Chưa đổi được tên đăng nhập.' };
   }
   const { error } = await admin.from('profiles')
-    .update({ full_name, username, role, class_id: role === 'student' ? class_id : null }).eq('id', id);
+    .update({ full_name, username, role: nextRole, class_id: nextRole === 'student' ? class_id : null }).eq('id', id);
   if (error) {
     // Hoàn lại email đăng nhập nếu bước sau lỗi, để tài khoản không bị lệch.
     if (username !== cur.username) await admin.auth.admin.updateUserById(id, { email: usernameToEmail(cur.username), user_metadata: { username: cur.username } });
@@ -126,8 +129,19 @@ export async function setPassword(id: string, password: string, mustChange: bool
   const admin = supabaseAdmin();
   const { error } = await admin.auth.admin.updateUserById(id, { password: pw });
   if (error) return { ok: false, error: 'Chưa đặt được mật khẩu.' };
+  const { data: target } = await admin.from('profiles').select('username').eq('id', id).maybeSingle();
   await admin.from('profiles').update({ must_change_password: generated || mustChange }).eq('id', id);
   if (id !== me.id) await (await supabaseServer()).rpc('revoke_sessions', { p_user: id }); // đăng xuất mọi máy
+  void recordTrace({
+    level: 'warn',
+    category: 'auth',
+    event: 'admin_password_reset_revoke',
+    user_id: id,
+    username: target?.username ?? null,
+    path: `/gv/hoc-sinh/${id}`,
+    message: `${me.username} đặt lại mật khẩu${id !== me.id ? ' và đăng xuất mọi thiết bị' : ''}`,
+    meta: { by: me.username, generated, mustChange: generated || mustChange, revoked: id !== me.id },
+  });
   refresh(id);
   return { ok: true, message: 'Đã đặt mật khẩu mới và đăng xuất tài khoản khỏi mọi máy.', password: generated ? pw : undefined };
 }
@@ -137,10 +151,22 @@ export async function setLocked(id: string, locked: boolean): Promise<Res> {
   if (!uuid.safeParse(id).success) return { ok: false, error: 'Tài khoản không hợp lệ.' };
   if (id === me.id) return { ok: false, error: 'Bạn không thể tự khoá tài khoản của mình.' };
   const admin = supabaseAdmin();
+  const { data: target } = await admin.from('profiles').select('username, role').eq('id', id).maybeSingle();
+  if (target?.role === 'admin' && me.role !== 'admin') return { ok: false, error: 'Không thể khoá tài khoản quản trị.' };
   const { error } = await admin.auth.admin.updateUserById(id, { ban_duration: locked ? '876000h' : 'none' });
   if (error) return { ok: false, error: 'Chưa cập nhật được.' };
   await admin.from('profiles').update({ is_locked: locked }).eq('id', id);
   if (locked) await (await supabaseServer()).rpc('revoke_sessions', { p_user: id });
+  void recordTrace({
+    level: 'warn',
+    category: 'auth',
+    event: 'admin_account_locked',
+    user_id: id,
+    username: target?.username ?? null,
+    path: `/gv/hoc-sinh/${id}`,
+    message: locked ? `${me.username} đã khoá tài khoản` : `${me.username} đã mở khoá tài khoản`,
+    meta: { by: me.username, locked },
+  });
   refresh(id);
   return { ok: true, message: locked ? 'Đã khoá và đăng xuất mọi máy.' : 'Đã mở khoá.' };
 }
@@ -152,6 +178,8 @@ export async function deleteAccount(id: string): Promise<Res> {
   const me = await requireTeacher();
   if (!uuid.safeParse(id).success) return { ok: false, error: 'Tài khoản không hợp lệ.' };
   if (id === me.id) return { ok: false, error: 'Bạn không thể tự xoá tài khoản của mình.' };
+  const { data: target } = await supabaseAdmin().from('profiles').select('role').eq('id', id).maybeSingle();
+  if (target?.role === 'admin' && me.role !== 'admin') return { ok: false, error: 'Không thể xoá tài khoản quản trị.' };
   const { error } = await supabaseAdmin().auth.admin.deleteUser(id);
   if (error) return { ok: false, error: 'Chưa xoá được tài khoản.' };
   refresh();
@@ -160,14 +188,24 @@ export async function deleteAccount(id: string): Promise<Res> {
 
 /** Xoá một bài làm (học sinh được làm lại nếu bài giao còn mở). */
 export async function deleteAttempt(attemptId: string, back?: string): Promise<Res> {
-  await requireTeacher();
+  const me = await requireTeacher();
   if (!uuid.safeParse(attemptId).success) return { ok: false, error: 'Bài làm không hợp lệ.' };
   const supabase = await supabaseServer();
-  const { data: t } = await supabase.from('attempts').select('student_id, assignment_id').eq('id', attemptId).maybeSingle();
+  const { data: t } = await supabase.from('attempts').select('student_id, guest_name, assignment_id').eq('id', attemptId).maybeSingle();
   if (!t) return { ok: false, error: 'Không tìm thấy bài làm.' };
   const { error } = await supabase.from('attempts').delete().eq('id', attemptId);
   if (error) return { ok: false, error: 'Chưa xoá được bài làm.' };
-  refresh(t.student_id);
+  void recordTrace({
+    level: 'info',
+    category: 'admin',
+    event: 'attempt_deleted',
+    user_id: me.id,
+    username: me.username,
+    attempt_id: attemptId,
+    message: `Xoá bài làm của ${t.guest_name || 'học sinh'}`,
+    meta: { assignment_id: t.assignment_id, student_id: t.student_id },
+  });
+  refresh(t.student_id ?? undefined);
   revalidatePath(`/gv/bai-giao/${t.assignment_id}`);
   revalidatePath('/gv');
   if (back?.startsWith('/gv/')) redirect(back);

@@ -19,14 +19,14 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
     supabase.from('classes').select('id, name').is('archived_at', null).order('name'),
     supabase.from('attempts').select('id, attempt_no, started_at, submitted_at, score, assignment_id, assignments(title)').eq('student_id', id).order('started_at', { ascending: false }),
   ]);
-  if (!a) notFound();
+  if (!a || (a.role === 'admin' && me.role !== 'admin')) notFound();
   const acc = a as Account;
 
   return (
     <div className="mx-auto max-w-4xl">
       <PageTitle title={a.full_name} back={{ href: a.role === 'teacher' ? '/gv/hoc-sinh?lop=giao-vien' : '/gv/hoc-sinh', label: 'Tài khoản' }}>
         <div className="flex flex-wrap gap-1.5 self-center">
-          {a.role === 'teacher' ? <Badge tone="brand">Giáo viên</Badge> : <Badge>Học sinh</Badge>}
+          {a.role === 'admin' ? <Badge tone="brand">Quản trị</Badge> : a.role === 'teacher' ? <Badge tone="brand">Giáo viên</Badge> : <Badge>Học sinh</Badge>}
           {a.is_locked && <Badge tone="pen">Đã khoá</Badge>}
         </div>
       </PageTitle>

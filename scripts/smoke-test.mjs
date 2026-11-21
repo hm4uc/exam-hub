@@ -17,7 +17,7 @@ const must = ({ data, error }, what) => { if (error) throw new Error(`${what}: $
 async function user(role) {
   const username = `smoke_${role}_${tag}`;
   const u = must(await admin.auth.admin.createUser({ email: `${username}@hs.local`, password: pass, email_confirm: true, user_metadata: { username, full_name: `Thử ${role}` } }), 'createUser').user;
-  if (role === 'teacher') must(await admin.from('profiles').update({ role }).eq('id', u.id), 'set role');
+  if (role === 'teacher' || role === 'admin') must(await admin.from('profiles').update({ role }).eq('id', u.id), 'set role');
   const c = createClient(URL, ANON, opts);
   must(await c.auth.signInWithPassword({ email: `${username}@hs.local`, password: pass }), 'signIn');
   return { id: u.id, c };
@@ -92,6 +92,42 @@ try {
   if (!up.error) await admin.storage.from('question-images').remove([`smoke/${tag}.txt`]);
   const up2 = await s.c.storage.from('question-images').upload(`smoke/${tag}-s.txt`, new Blob(['x']));
   check('học sinh không tải được file lên', !!up2.error);
+
+  // Luồng mới: link tự do không lớp, không giờ đóng + khách không đăng nhập làm bài
+  const quickAsg = must(await t.c.from('assignments').insert({
+    exam_id: exam.id, class_id: null, title: `Link nhanh ${tag}`, opens_at: new Date(now - 60e3).toISOString(),
+    closes_at: null, duration_minutes: 45, result_mode: 'score_answers', is_quick_link: true,
+  }).select().single(), 'quick assignment');
+  const anonClient = createClient(URL, ANON, opts);
+  const gKey1 = `smoke-guest-1-${tag}`;
+  const gKey2 = `smoke-guest-2-${tag}`;
+  const gInfo = must(await anonClient.rpc('assignment_info', { p_code: quickAsg.code, p_guest_key: gKey1 }), 'guest assignment_info');
+  check('khách xem được link tự do không cần đăng nhập', gInfo?.state === 'open' && gInfo?.class_name === null && gInfo?.closes_at === null);
+  const gStart = must(await anonClient.rpc('start_attempt', { p_code: quickAsg.code, p_guest_key: gKey1, p_guest_name: '' }), 'guest start');
+  check('khách để trống tên được gán tên mặc định', gStart?.guest_name === 'Học sinh #1', gStart?.guest_name);
+  const gq = Object.fromEntries(gStart.questions.map((x) => [x.type, x.id]));
+  const gr = await fetch(`${URL}/rest/v1/rpc/save_answers`, {
+    method: 'POST', headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ p_attempt: gStart.attempt_id, p_answers: { [gq.mcq]: 'B', [gq.short]: '0,5' }, p_tab_leaves: 1, p_guest_key: gKey1 }),
+  });
+  check('khách lưu đáp án qua REST (anon key)', gr.ok, String(gr.status));
+  check('khách khác không sửa được bài của khách 1', (await anonClient.rpc('save_answers', { p_attempt: gStart.attempt_id, p_answers: {}, p_guest_key: gKey2 })).error != null);
+  const gSub = must(await anonClient.rpc('submit_attempt', { p_attempt: gStart.attempt_id, p_guest_key: gKey1 }), 'guest submit');
+  check('khách nộp bài & nhận kết quả', gSub?.is_guest === true && Number(gSub?.score) > 0, String(gSub?.score));
+
+  // Luồng mới: bài gắn lớp bật restrict_to_class=true → chặn khách
+  const lockedAsg = must(await t.c.from('assignments').insert({
+    exam_id: exam.id, class_id: cls.id, restrict_to_class: true, title: `Giới hạn lớp ${tag}`,
+    opens_at: new Date(now - 60e3).toISOString(), closes_at: null, duration_minutes: 15,
+  }).select().single(), 'locked assignment');
+  check('bài giới hạn lớp yêu cầu khách đăng nhập', (await anonClient.rpc('start_attempt', { p_code: lockedAsg.code, p_guest_key: gKey2 })).error?.message === 'LOGIN_REQUIRED');
+
+  // Luồng mới: vai trò admin & RLS bảng trace_events
+  const adm = await user('admin'); ids.push(adm.id);
+  const { data: traceRow } = await admin.from('trace_events').insert({ level: 'warn', category: 'exam', event: 'smoke_test', message: `smoke ${tag}` }).select('id').single();
+  check('giáo viên không đọc được trace_events', ((await t.c.from('trace_events').select('id')).data ?? []).length === 0);
+  check('admin đọc được trace_events', ((await adm.c.from('trace_events').select('id').eq('id', traceRow.id)).data ?? []).length === 1);
+  if (traceRow?.id) await admin.from('trace_events').delete().eq('id', traceRow.id);
 } catch (e) {
   fail++; console.error('✗ Lỗi:', e.message);
 } finally {

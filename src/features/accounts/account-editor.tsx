@@ -5,7 +5,7 @@ import { Alert, Button, Field, Input, Panel, Select } from '@/components/ui';
 import { deleteAccount, deleteAttempt, setLocked, setPassword, updateAccount, type Res } from './actions';
 
 export interface Account {
-  id: string; role: 'student' | 'teacher'; full_name: string; username: string; class_id: string | null;
+  id: string; role: 'admin' | 'student' | 'teacher'; full_name: string; username: string; class_id: string | null;
   is_locked: boolean; must_change_password: boolean;
 }
 

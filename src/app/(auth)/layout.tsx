@@ -1,13 +1,16 @@
+import Link from 'next/link';
 import { ThemeSwitch } from '@/components/theme-switch';
 import { LogoMark } from '@/components/shell/logo';
 
-// Trang đăng nhập/đăng ký: dải navy phía trên, thẻ biểu mẫu nằm đè lên mép dải.
+// Trang đăng nhập/đăng ký/đổi mật khẩu: dải navy phía trên, thẻ biểu mẫu nằm đè lên mép dải.
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-dvh">
       <div className="h-44 bg-shell sm:h-56" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="mx-auto flex max-w-md items-center justify-between px-4 pt-4 text-shell-ink">
-          <p className="flex items-center gap-2 text-lg font-bold tracking-tight"><LogoMark />Exam Hub</p>
+          <Link href="/" className="flex min-h-10 items-center gap-2 text-lg font-bold tracking-tight hover:opacity-90">
+            <LogoMark />Exam Hub
+          </Link>
           <ThemeSwitch onShell />
         </div>
       </div>

@@ -1,7 +1,20 @@
 'use client';
+import { useEffect } from 'react';
+import { traceClient } from '@/lib/trace-client';
 
 // Thay cho layout gốc khi chính layout lỗi: tự có <html>/<body>, không dùng style toàn cục.
-export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  useEffect(() => {
+    traceClient({
+      level: 'error',
+      category: 'error',
+      event: 'react_error_boundary',
+      message: error?.message || 'Global error boundary triggered',
+      meta: { global: true, digest: error?.digest, stack: error?.stack?.slice(0, 800) },
+      urgent: true,
+    });
+  }, [error]);
+
   return (
     <html lang="vi">
       <body style={{ fontFamily: 'system-ui, sans-serif', padding: 24, maxWidth: 480, margin: '0 auto', color: '#161e34' }}>
