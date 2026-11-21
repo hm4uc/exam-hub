@@ -84,7 +84,7 @@ export default async function AssignmentPage({ params }: { params: Promise<{ cod
   ];
 
   return (
-    <main id="main-content" className="mx-auto max-w-xl px-4 py-6">
+    <main id="main-content" className="page-enter mx-auto max-w-xl px-4 py-6">
       {isGuest && <GuestCookieSync hasCookie={!!guestCookie} />}
       <h1 className="text-2xl font-bold tracking-tight">{info.title}</h1>
       <Panel className="mt-4">

@@ -1,5 +1,5 @@
-import { PageSkeleton } from '@/components/ui';
+import { AssignmentResultsSkeleton } from '@/components/skeletons';
 
-export default function Loading() {
-  return <PageSkeleton rows={6} aside />;
+export default function AssignmentResultsLoading() {
+  return <AssignmentResultsSkeleton />;
 }

@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import { Be_Vietnam_Pro } from 'next/font/google';
+import { Suspense } from 'react';
 import { DropGuard } from '@/components/drop-guard';
+import { NavigationProgress } from '@/components/nav-progress';
 import { THEME_BOOT, THEME_COLOR } from '@/components/theme';
 import { TraceProvider } from '@/components/trace-provider';
 import './globals.css';
@@ -57,6 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-dvh font-sans">
         <a href="#main-content" className="skip-link">Chuyển tới nội dung chính</a>
+        <Suspense fallback={null}><NavigationProgress /></Suspense>
         <DropGuard />
         <TraceProvider />
         {children}

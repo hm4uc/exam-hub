@@ -32,7 +32,13 @@ export function ExamPreviewClient({
   const [mode, setMode] = useState<'single' | 'all'>('single');
   const [showKey, setShowKey] = useState(false);
   const [cur, setCur] = useState(0);
+  const [dir, setDir] = useState<'next' | 'prev'>('next');
   const [answers, setAnswers] = useState<Record<string, string>>({});
+
+  const goTo = (idx: number) => {
+    setDir(idx >= cur ? 'next' : 'prev');
+    setCur(idx);
+  };
 
   if (!questions.length) {
     return (
@@ -49,8 +55,15 @@ export function ExamPreviewClient({
   const setAns = (qid: string, val: string) => setAnswers((a) => ({ ...a, [qid]: val }));
   const q = questions[cur];
 
-  const renderCard = (item: PreviewQuestion, idx: number) => (
-    <article key={item.id} id={`pv-${idx + 1}`} className="scroll-mt-20 rounded-xl border border-line bg-surface p-4 shadow-card sm:p-6">
+  const renderCard = (item: PreviewQuestion, idx: number, animated = false) => (
+    <article
+      key={item.id}
+      id={`pv-${idx + 1}`}
+      className={cx(
+        'scroll-mt-20 rounded-xl border border-line bg-surface p-4 shadow-card sm:p-6',
+        animated && (dir === 'next' ? 'q-enter-next' : 'q-enter-prev'),
+      )}
+    >
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <h2 className="text-base font-bold">Câu {idx + 1}</h2>
         <span className="text-sm text-muted">· {TYPE_NAME[item.type]}</span>
@@ -196,7 +209,7 @@ export function ExamPreviewClient({
                 key={x.id}
                 type="button"
                 className="bubble"
-                onClick={() => setCur(i)}
+                onClick={() => goTo(i)}
                 data-state={isAnswered(x, answers[x.id]) ? 'filled' : 'empty'}
                 data-current={i === cur}
               >
@@ -218,20 +231,20 @@ export function ExamPreviewClient({
 
       {mode === 'single' ? (
         <div className="grid gap-4">
-          {renderCard(q, cur)}
+          {renderCard(q, cur, true)}
           <div className="flex items-center justify-between gap-3">
-            <Button variant="secondary" onClick={() => setCur((c) => c - 1)} disabled={cur === 0}>
+            <Button variant="secondary" onClick={() => goTo(cur - 1)} disabled={cur === 0}>
               <ChevronLeft className="h-4 w-4" aria-hidden />Câu trước
             </Button>
             <span className="num text-sm text-muted">Câu {cur + 1} / {questions.length}</span>
-            <Button onClick={() => setCur((c) => c + 1)} disabled={cur === questions.length - 1}>
+            <Button onClick={() => goTo(cur + 1)} disabled={cur === questions.length - 1}>
               Câu sau<ChevronRight className="h-4 w-4" aria-hidden />
             </Button>
           </div>
         </div>
       ) : (
         <div className="grid gap-4">
-          {questions.map((item, idx) => renderCard(item, idx))}
+          {questions.map((item, idx) => renderCard(item, idx, false))}
         </div>
       )}
     </div>

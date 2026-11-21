@@ -54,10 +54,13 @@ export function TraceViewer({
   const [confirmPurge, setConfirmPurge] = useState(false);
   const [purgeMsg, setPurgeMsg] = useState('');
   const [busy, start] = useTransition();
+  const [navPending, startNav] = useTransition();
+
+  const go = (href: string) => startNav(() => router.push(href));
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    router.push(buildHref(filters, { q }));
+    go(buildHref(filters, { q }));
   };
 
   const runPurge = () => start(async () => {
@@ -107,7 +110,7 @@ export function TraceViewer({
             <select
               aria-label="Lọc danh mục"
               value={filters.cat}
-              onChange={(e) => router.push(buildHref(filters, { cat: e.target.value }))}
+              onChange={(e) => go(buildHref(filters, { cat: e.target.value }))}
               className="min-h-9 rounded-lg border border-line bg-surface px-2.5 text-xs font-medium text-ink focus:border-brand focus:outline-none"
             >
               <option value="">Tất cả danh mục</option>
@@ -119,7 +122,7 @@ export function TraceViewer({
             <select
               aria-label="Khoảng thời gian"
               value={filters.range}
-              onChange={(e) => router.push(buildHref(filters, { range: e.target.value }))}
+              onChange={(e) => go(buildHref(filters, { range: e.target.value }))}
               className="min-h-9 rounded-lg border border-line bg-surface px-2.5 text-xs font-medium text-ink focus:border-brand focus:outline-none"
             >
               <option value="1h">1 giờ qua</option>
@@ -128,8 +131,8 @@ export function TraceViewer({
               <option value="30d">30 ngày qua</option>
             </select>
 
-            <Button variant="secondary" type="button" className="min-h-9 px-3 text-xs" onClick={() => router.refresh()}>
-              <RefreshCw className="h-3.5 w-3.5" aria-hidden />Làm mới
+            <Button variant="secondary" type="button" className="min-h-9 px-3 text-xs" onClick={() => startNav(() => router.refresh())} disabled={navPending}>
+              <RefreshCw className={cx('h-3.5 w-3.5', navPending && 'animate-spin')} aria-hidden />Làm mới
             </Button>
           </div>
         </div>
@@ -190,7 +193,7 @@ export function TraceViewer({
           Khi học sinh hoặc giáo viên thao tác, đăng nhập, rời trang thi hay gặp lỗi mạng/JS, toàn bộ dấu vết sẽ hiện ở đây theo thời gian thực.
         </Empty>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-line bg-surface">
+        <div className={cx('overflow-hidden rounded-xl border border-line bg-surface shadow-card transition-opacity', navPending && 'opacity-60')}>
           <ul className="divide-y divide-line">
             {rows.map((r) => (
               <TraceItem key={r.id} row={r} filters={filters} />

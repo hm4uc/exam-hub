@@ -39,7 +39,7 @@ export default async function StudentHome() {
   ];
 
   return (
-    <main id="main-content" className="mx-auto max-w-3xl px-4 py-6">
+    <main id="main-content" className="page-enter mx-auto max-w-3xl px-4 py-6">
       <h1 className="text-2xl font-bold tracking-tight">Bài của tôi</h1>
       {error && <Alert className="mt-4">{rpcMessage(error)}</Alert>}
       {!res?.class_name && !items.length && !error && (

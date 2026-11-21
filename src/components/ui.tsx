@@ -119,30 +119,4 @@ export function Empty({ title, children }: { title: string; children?: ReactNode
   );
 }
 
-/** Khối giữ chỗ khi trang đang tải. */
-export function Skeleton({ className }: { className?: string }) {
-  return <div aria-hidden className={cx('animate-pulse rounded-lg bg-sunken', className)} />;
-}
-
-/** Khung trang đang tải: tiêu đề + danh sách. Hiện ngay khi bấm chuyển trang. */
-export function PageSkeleton({ rows = 5, aside = false }: { rows?: number; aside?: boolean }) {
-  return (
-    <div role="status" aria-label="Đang tải">
-      <div className="mb-6 flex items-end justify-between gap-3">
-        <Skeleton className="h-8 w-48 sm:w-64" />
-        <Skeleton className="h-10 w-32" />
-      </div>
-      <div className={cx('grid items-start gap-6', aside && 'lg:grid-cols-[minmax(0,1fr)_20rem]')}>
-        <div className="overflow-hidden rounded-xl border border-line bg-surface">
-          {Array.from({ length: rows }, (_, i) => (
-            <div key={i} className="flex items-center gap-3 border-b border-line px-4 py-3.5 last:border-0">
-              <div className="grid flex-1 gap-2"><Skeleton className="h-4 w-3/5" /><Skeleton className="h-3 w-2/5" /></div>
-              <Skeleton className="h-6 w-16 rounded-full" />
-            </div>
-          ))}
-        </div>
-        {aside && <Skeleton className="hidden h-64 rounded-xl lg:block" />}
-      </div>
-    </div>
-  );
-}
+export { Skeleton, PageSkeleton } from '@/components/skeletons';

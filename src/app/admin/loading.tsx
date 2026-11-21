@@ -1,5 +1,5 @@
-import { PageSkeleton } from '@/components/ui';
+import { AdminTraceSkeleton } from '@/components/skeletons';
 
 export default function AdminLoading() {
-  return <PageSkeleton rows={6} />;
+  return <AdminTraceSkeleton />;
 }

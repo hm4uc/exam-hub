@@ -27,6 +27,10 @@
   --ok-soft: 222 245 233;
   --warn: 146 84 0;
   --warn-soft: 255 243 214;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 140ms;
+  --dur-base: 220ms;
+  --dur-slow: 360ms;
   color-scheme: light;
 }
 
@@ -105,6 +109,44 @@
   ::-webkit-scrollbar-thumb:hover { background: rgb(var(--muted) / 0.55); }
 }
 
+/* ============================================================ Chuyển động đồng bộ (GPU transform & opacity) */
+
+@keyframes eh-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes eh-slide-next {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes eh-slide-prev {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes eh-grade-stamp {
+  from { opacity: 0; transform: scale(1.08) rotate(-6deg); }
+  to { opacity: 1; transform: scale(1) rotate(-4deg); }
+}
+
+@keyframes eh-bar-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes eh-shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+@keyframes eh-card-flash {
+  0% { box-shadow: 0 0 0 0 rgb(var(--brand) / 0.45); }
+  40% { box-shadow: 0 0 0 4px rgb(var(--brand) / 0.35); }
+  100% { box-shadow: 0 0 0 0 rgb(var(--brand) / 0); }
+}
+
 @layer components {
   .num { font-variant-numeric: tabular-nums; }
 
@@ -121,6 +163,39 @@
     z-index: 1;
   }
 
+  /* Hiệu ứng vào trang, chuyển câu hỏi, dấu điểm đỏ, thanh tỷ lệ và skeleton shimmer */
+  .page-enter {
+    animation: eh-enter var(--dur-base) var(--ease-out) both;
+  }
+  .q-enter-next {
+    animation: eh-slide-next 180ms var(--ease-out) both;
+  }
+  .q-enter-prev {
+    animation: eh-slide-prev 180ms var(--ease-out) both;
+  }
+  .grade-stamp {
+    animation: eh-grade-stamp var(--dur-slow) var(--ease-out) both;
+  }
+  .bar-grow {
+    transform-origin: left center;
+    animation: eh-bar-grow var(--dur-slow) var(--ease-out) both;
+  }
+  .card-flash {
+    animation: eh-card-flash 750ms var(--ease-out);
+  }
+  .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background: rgb(var(--sunken));
+  }
+  .skeleton-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgb(var(--surface) / 0.55) 50%, transparent 100%);
+    animation: eh-shimmer 1.35s var(--ease-out) infinite;
+  }
+
   /* Nội dung câu hỏi đã render (KaTeX + ảnh) */
   .rich { overflow-wrap: anywhere; line-height: 1.65; }
   .rich .katex { font-size: 1.08em; }
@@ -133,12 +208,14 @@
 
   /* Ô tô của phiếu trả lời trắc nghiệm — điểm nhấn riêng của sản phẩm */
   .bubble {
-    @apply relative inline-flex h-10 w-10 cursor-pointer select-none items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors sm:h-9 sm:w-9;
+    @apply relative inline-flex h-10 w-10 cursor-pointer select-none items-center justify-center rounded-full border-2 text-sm font-semibold sm:h-9 sm:w-9;
+    transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
     border-color: rgb(var(--brand) / 0.35);
     color: rgb(var(--brand));
     background: rgb(var(--surface));
   }
   .bubble:hover { border-color: rgb(var(--brand)); background: rgb(var(--brand-soft) / 0.65); }
+  .bubble:active { transform: scale(0.94); }
   .bubble[data-state='filled'] { background: rgb(var(--brand)); border-color: rgb(var(--brand)); color: rgb(var(--on-brand)); }
   .bubble[data-state='filled']:hover { background: rgb(var(--brand-strong)); border-color: rgb(var(--brand-strong)); }
   .bubble[data-current='true'] { box-shadow: 0 0 0 3px rgb(var(--ground)), 0 0 0 5px rgb(var(--ink)); }
@@ -149,6 +226,7 @@
   .bubble[data-state='right'] { background: rgb(var(--ok)); border-color: rgb(var(--ok)); color: rgb(var(--surface)); }
   .bubble[data-state='part'] { background: rgb(var(--warn-soft)); border-color: rgb(var(--warn)); color: rgb(var(--warn)); }
   .bubble[data-state='wrong'] { background: rgb(var(--pen-soft)); border-color: rgb(var(--pen)); color: rgb(var(--pen)); }
+  .bubble[data-state='blank'] { background: rgb(var(--surface)); border-style: dashed; border-color: rgb(var(--muted) / 0.45); color: rgb(var(--muted)); }
 
   /* Dấu chấm điểm bằng bút đỏ */
   .grade-mark { color: rgb(var(--pen)); font-weight: 700; letter-spacing: -0.02em; transform: rotate(-4deg); display: inline-block; }
@@ -156,5 +234,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+  .page-enter, .q-enter-next, .q-enter-prev, .grade-stamp, .bar-grow, .card-flash { animation: none !important; }
+  .skeleton-shimmer::after { animation: none !important; display: none; }
+  .bubble:active { transform: none; }
 }

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { RouteStage } from '@/components/route-stage';
 import { AppHeader } from '@/components/shell/app-header';
 import { requireAdmin } from '@/server/auth';
 
@@ -20,7 +21,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <>
       <AppHeader home="/admin" width="max-w-6xl" user={{ name: me.full_name, sub: 'Quản trị hệ thống' }} nav={nav} />
       <main id="main-content" className="mx-auto max-w-6xl px-4 pb-16 pt-6" style={{ paddingLeft: 'max(1rem, env(safe-area-inset-left))', paddingRight: 'max(1rem, env(safe-area-inset-right))' }}>
-        {children}
+        <RouteStage>{children}</RouteStage>
       </main>
     </>
   );

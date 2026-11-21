@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, cx } from '@/components/ui';
+import { ExamRunnerSkeleton } from '@/components/skeletons';
 import { ensureGuestKey, getSavedGuestName } from '@/lib/guest';
 import { RPC_MESSAGES } from '@/lib/rpc-messages';
 import { traceClient } from '@/lib/trace-client';
@@ -45,6 +46,7 @@ export function ExamRunner({ code }: { code: string }) {
   const [loadErr, setLoadErr] = useState('');
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [cur, setCur] = useState(0);
+  const [dir, setDir] = useState<'next' | 'prev'>('next');
   const [flags, setFlags] = useState<Record<string, boolean>>({});
   const [save, setSave] = useState<SaveState>('saved');
   const [left, setLeft] = useState<number | null>(null);
@@ -398,13 +400,21 @@ export function ExamRunner({ code }: { code: string }) {
     router.push(`/${code}`);
   };
 
+  const goTo = useCallback((nextIdx: number) => {
+    setCur((prev) => {
+      setDir(nextIdx >= prev ? 'next' : 'prev');
+      return nextIdx;
+    });
+    setConfirming(false);
+  }, []);
+
   if (loadErr) return (
-    <main className="mx-auto max-w-xl px-4 py-8">
+    <main id="main-content" className="page-enter mx-auto max-w-xl px-4 py-8">
       <Alert>{loadErr}</Alert>
       <Link href={`/${code}`} className="mt-4 inline-block text-sm font-semibold text-brand underline">Quay lại</Link>
     </main>
   );
-  if (!data || !q) return <main className="grid min-h-[50dvh] place-items-center text-muted"><Loader2 className="h-6 w-6 animate-spin" aria-label="Đang mở đề" /></main>;
+  if (!data || !q) return <ExamRunnerSkeleton />;
 
   const mm = Math.floor((left ?? 0) / 60000), ss = Math.floor(((left ?? 0) % 60000) / 1000);
   const low = (left ?? 1e9) < 5 * 60000;
@@ -453,7 +463,7 @@ export function ExamRunner({ code }: { code: string }) {
           </div>
           <div className="flex flex-wrap gap-2">
             {qs.map((x, i) => (
-              <button key={x.id} type="button" className="bubble" onClick={() => { setCur(i); setConfirming(false); }}
+              <button key={x.id} type="button" className="bubble" onClick={() => goTo(i)}
                 data-state={isAnswered(x, answers[x.id]) ? 'filled' : 'empty'} data-current={i === cur} data-flag={!!flags[x.id]}
                 aria-label={`Câu ${i + 1}${isAnswered(x, answers[x.id]) ? ', đã làm' : ''}${flags[x.id] ? ', đánh dấu xem lại' : ''}`} aria-current={i === cur ? 'step' : undefined}>
                 {i + 1}
@@ -462,7 +472,7 @@ export function ExamRunner({ code }: { code: string }) {
           </div>
         </section>
 
-        <article className="rounded-xl border border-line bg-surface p-4 shadow-card sm:p-6" aria-labelledby="qtitle">
+        <article key={q.id} className={cx('rounded-xl border border-line bg-surface p-4 shadow-card sm:p-6', dir === 'next' ? 'q-enter-next' : 'q-enter-prev')} aria-labelledby="qtitle">
           <div className="mb-3 flex items-center gap-2">
             <h2 id="qtitle" className="text-base font-bold">Câu {cur + 1}</h2>
             <span className="text-sm text-muted">· {TYPE_NAME[q.type]}</span>
@@ -522,9 +532,9 @@ export function ExamRunner({ code }: { code: string }) {
 
         {!confirming ? (
           <div className="flex items-center justify-between gap-3">
-            <Button variant="secondary" onClick={() => setCur((c) => c - 1)} disabled={cur === 0}><ChevronLeft className="h-4 w-4" aria-hidden />Câu trước</Button>
+            <Button variant="secondary" onClick={() => goTo(cur - 1)} disabled={cur === 0}><ChevronLeft className="h-4 w-4" aria-hidden />Câu trước</Button>
             {cur < qs.length - 1 ? (
-              <Button onClick={() => setCur((c) => c + 1)}>Câu sau<ChevronRight className="h-4 w-4" aria-hidden /></Button>
+              <Button onClick={() => goTo(cur + 1)}>Câu sau<ChevronRight className="h-4 w-4" aria-hidden /></Button>
             ) : (
               <Button onClick={() => setConfirming(true)}>Nộp bài</Button>
             )}

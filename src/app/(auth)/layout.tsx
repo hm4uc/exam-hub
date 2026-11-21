@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { RouteStage } from '@/components/route-stage';
 import { ThemeSwitch } from '@/components/theme-switch';
 import { LogoMark } from '@/components/shell/logo';
 
@@ -15,7 +16,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
       </div>
       <main id="main-content" className="mx-auto -mt-24 max-w-md px-4 pb-10 sm:-mt-32">
-        <div className="rounded-2xl border border-line bg-surface p-5 shadow-pop sm:p-8">{children}</div>
+        <div className="rounded-2xl border border-line bg-surface p-5 shadow-pop sm:p-8">
+          <RouteStage>{children}</RouteStage>
+        </div>
       </main>
     </div>
   );
