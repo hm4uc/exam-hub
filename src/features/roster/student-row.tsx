@@ -2,8 +2,9 @@
 import { KeyRound, Lock, LockOpen, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
-import { Badge, Button, Input, cx } from '@/components/ui';
+import { Badge, Button, FieldError, Input, cx } from '@/components/ui';
 import { renameAccount, setLocked, setPassword, setStudentClass } from '@/features/accounts/actions';
+import { validateFullName } from '@/lib/validation';
 
 interface S { id: string; role: string; full_name: string; username: string; class_id: string | null; is_locked: boolean; must_change_password: boolean; created: string; duplicate: boolean }
 
@@ -11,6 +12,7 @@ export function StudentRow({ s, classes }: { s: S; classes: { id: string; name: 
   const [pending, start] = useTransition();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(s.full_name);
+  const [nameErr, setNameErr] = useState('');
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [tempPw, setTempPw] = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
@@ -22,14 +24,41 @@ export function StudentRow({ s, classes }: { s: S; classes: { id: string; name: 
       else { if (r.password) setTempPw(r.password); setNote(okText ? { ok: true, text: okText } : null); }
     });
 
+  const onSaveName = (e: React.FormEvent) => {
+    e.preventDefault();
+    const err = validateFullName(name, 1);
+    if (err) { setNameErr(err); return; }
+    setNameErr('');
+    start(async () => {
+      const r = await renameAccount(s.id, name);
+      if (r.ok) { setEditing(false); setNote(null); }
+      else setNameErr(r.fieldErrors?.full_name ?? r.error);
+    });
+  };
+
   return (
     <li className={cx('group relative grid gap-3 px-4 py-3.5 transition-colors hover:bg-sunken/70 focus-within:bg-sunken/70 lg:grid-cols-[minmax(0,1fr)_11rem_9rem_17rem] lg:items-start lg:gap-4', s.is_locked && 'bg-sunken/60')}>
       <div className="min-w-0">
         {editing ? (
-          <form className="relative z-10 flex gap-2" onSubmit={(e) => { e.preventDefault(); run(async () => { const r = await renameAccount(s.id, name); if (r.ok) setEditing(false); return r; }); }}>
-            <Input value={name} onChange={(e) => setName(e.target.value)} className="min-w-0 flex-1" aria-label="Họ tên" autoFocus />
-            <Button type="submit" disabled={pending}>Lưu</Button>
-            <Button type="button" variant="secondary" onClick={() => { setEditing(false); setName(s.full_name); }}>Huỷ</Button>
+          <form className="relative z-10 grid gap-1.5" onSubmit={onSaveName} noValidate>
+            <div className="flex gap-2">
+              <Input
+                value={name}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setName(v);
+                  if (nameErr) setNameErr(validateFullName(v, 1) ?? '');
+                }}
+                onBlur={() => setNameErr(validateFullName(name, 1) ?? '')}
+                invalid={!!nameErr}
+                className="min-w-0 flex-1"
+                aria-label="Họ tên"
+                autoFocus
+              />
+              <Button type="submit" disabled={pending}>Lưu</Button>
+              <Button type="button" variant="secondary" onClick={() => { setEditing(false); setName(s.full_name); setNameErr(''); }}>Huỷ</Button>
+            </div>
+            <FieldError error={nameErr} />
           </form>
         ) : (
           <p className="flex items-center gap-1 font-medium">

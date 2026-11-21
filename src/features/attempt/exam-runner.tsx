@@ -3,11 +3,12 @@ import { Check, ChevronLeft, ChevronRight, CloudOff, Flag, Loader2, LogOut } fro
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Button, cx } from '@/components/ui';
+import { Alert, Button, FieldError, cx } from '@/components/ui';
 import { ExamRunnerSkeleton } from '@/components/skeletons';
 import { ensureGuestKey, getSavedGuestName } from '@/lib/guest';
 import { RPC_MESSAGES } from '@/lib/rpc-messages';
 import { traceClient } from '@/lib/trace-client';
+import { validateShortAnswerText } from '@/lib/validation';
 import { supabaseBrowser } from '@/server/supabase/client';
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from '@/server/supabase/env';
 
@@ -419,6 +420,8 @@ export function ExamRunner({ code }: { code: string }) {
   const mm = Math.floor((left ?? 0) / 60000), ss = Math.floor(((left ?? 0) % 60000) / 1000);
   const low = (left ?? 1e9) < 5 * 60000;
   const unanswered = qs.length - doneCount;
+  const invalidShortCount = qs.filter((x) => x.type === 'short' && !!validateShortAnswerText(answers[x.id] ?? '', false)).length;
+  const curShortErr = q.type === 'short' ? validateShortAnswerText(answers[q.id] ?? '', false) : undefined;
 
   return (
     <div className="pb-24">
@@ -522,10 +525,23 @@ export function ExamRunner({ code }: { code: string }) {
 
           {q.type === 'short' && (
             <div className="mt-4">
-              <label htmlFor={`sa-${q.id}`} className="text-sm text-muted">Đáp số (dùng dấu phẩy hoặc dấu chấm cho số thập phân)</label>
-              <input id={`sa-${q.id}`} key={q.id} inputMode="decimal" autoComplete="off" maxLength={12} placeholder="Ví dụ: -2,5"
-                value={answers[q.id] ?? ''} onChange={(e) => setAnswer(q.id, e.target.value.replace(/[^\d,.\-]/g, ''))}
-                className="mt-1.5 block w-full max-w-[14rem] rounded-xl border border-line bg-surface px-4 py-3 text-xl font-semibold tabular-nums focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25" />
+              <label htmlFor={`sa-${q.id}`} className={cx('text-sm transition-colors', curShortErr ? 'font-medium text-pen' : 'text-muted')}>
+                Đáp số (dùng dấu phẩy hoặc dấu chấm cho số thập phân)
+              </label>
+              <input
+                id={`sa-${q.id}`}
+                key={q.id}
+                inputMode="decimal"
+                autoComplete="off"
+                maxLength={16}
+                placeholder="Ví dụ: -2,5"
+                value={answers[q.id] ?? ''}
+                onChange={(e) => setAnswer(q.id, e.target.value)}
+                aria-invalid={!!curShortErr || undefined}
+                aria-describedby={curShortErr ? `sa-err-${q.id}` : undefined}
+                className="mt-1.5 block w-full max-w-[14rem] rounded-xl border border-line bg-surface px-4 py-3 text-xl font-semibold tabular-nums transition-colors focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25 aria-[invalid=true]:border-pen aria-[invalid=true]:bg-pen-soft/35 aria-[invalid=true]:focus:border-pen aria-[invalid=true]:focus:ring-pen/25"
+              />
+              <FieldError id={`sa-err-${q.id}`} error={curShortErr} className="mt-1.5" />
             </div>
           )}
         </article>
@@ -546,6 +562,11 @@ export function ExamRunner({ code }: { code: string }) {
               {unanswered ? <>Còn <b className="text-pen">{unanswered}</b> câu chưa làm. </> : 'Bạn đã làm hết các câu. '}
               Sau khi nộp sẽ không sửa được nữa.
             </p>
+            {invalidShortCount > 0 && (
+              <Alert tone="pen" className="mt-2.5">
+                Có <b>{invalidShortCount}</b> câu trả lời ngắn chưa đúng định dạng số — hãy kiểm tra lại để không bị mất điểm.
+              </Alert>
+            )}
             {submitErr && <Alert className="mt-3">{submitErr}</Alert>}
             <div className="mt-3 flex flex-wrap gap-2">
               <Button onClick={() => submit(false)} disabled={submitting}>{submitting ? 'Đang nộp…' : 'Nộp bài'}</Button>

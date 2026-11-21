@@ -2,20 +2,85 @@
 import { ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useActionState, useRef, useState, useTransition } from 'react';
-import { Alert, Badge, Button, Input, cx } from '@/components/ui';
+import { Alert, Badge, Button, Field, FieldError, Input, cx, focusFirstError } from '@/components/ui';
+import { hasErrors, validateClassName, type FieldErrors } from '@/lib/validation';
 import { archiveClass, createClass, renameClass, type Res } from './actions';
 
 const thisYear = () => { const d = new Date(); const y = d.getMonth() >= 7 ? d.getFullYear() : d.getFullYear() - 1; return `${y}-${y + 1}`; };
 
 export function NewClassForm() {
   const ref = useRef<HTMLFormElement>(null);
-  const [state, action, pending] = useActionState<Res | undefined, FormData>(async (p, f) => { const r = await createClass(p, f); if (r.ok) ref.current?.reset(); return r; }, undefined);
+  const [clientErrs, setClientErrs] = useState<FieldErrors>({});
+  const [dismissed, setDismissed] = useState<Partial<Record<string, Res | undefined>>>({});
+  const [state, action, pending] = useActionState<Res | undefined, FormData>(async (p, f) => {
+    const r = await createClass(p, f);
+    if (r.ok) {
+      ref.current?.reset();
+      setClientErrs({});
+      setDismissed({});
+    }
+    return r;
+  }, undefined);
+
+  type Key = 'name' | 'school_year';
+  const serverFields = state && !state.ok ? state.fieldErrors : undefined;
+  const errOf = (k: Key) => clientErrs[k] || (dismissed[k] === state ? undefined : serverFields?.[k]);
+  const validateYear = (v: string) => (v.trim().length > 20 ? 'Năm học tối đa 20 ký tự.' : undefined);
+
+  const onChange = (k: Key, v: string) => {
+    setDismissed((d) => (d[k] === state ? d : { ...d, [k]: state }));
+    if (clientErrs[k]) setClientErrs((e) => ({ ...e, [k]: k === 'name' ? validateClassName(v) : validateYear(v) }));
+  };
+
+  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const fd = new FormData(e.currentTarget);
+    const errs: FieldErrors = {
+      name: validateClassName(String(fd.get('name') ?? '')),
+      school_year: validateYear(String(fd.get('school_year') ?? '')),
+    };
+    if (hasErrors(errs)) {
+      e.preventDefault();
+      setClientErrs(errs);
+      focusFirstError(e.currentTarget, errs);
+      return;
+    }
+    setClientErrs({});
+  };
+
+  const nameErr = errOf('name');
+  const yearErr = errOf('school_year');
+
   return (
-    <form ref={ref} action={action} className="grid gap-3 rounded-xl border border-line bg-surface p-4 shadow-card sm:grid-cols-[1fr_10rem_auto] sm:items-end">
-      <label className="grid gap-1.5 text-sm font-medium">Tên lớp<Input name="name" placeholder="Ví dụ: 11A2" required maxLength={60} /></label>
-      <label className="grid gap-1.5 text-sm font-medium">Năm học<Input name="school_year" defaultValue={thisYear()} maxLength={20} /></label>
-      <Button type="submit" disabled={pending}>Tạo lớp</Button>
-      {state && <div className="sm:col-span-3"><Alert tone={state.ok ? 'ok' : 'pen'}>{state.ok ? state.message : state.error}</Alert></div>}
+    <form ref={ref} action={action} onSubmit={onSubmit} noValidate className="grid gap-3 rounded-xl border border-line bg-surface p-4 shadow-card sm:grid-cols-[1fr_10rem_auto] sm:items-start">
+      <Field label="Tên lớp" htmlFor="new-class-name" error={nameErr}>
+        <Input
+          id="new-class-name"
+          name="name"
+          placeholder="Ví dụ: 11A2"
+          required
+          maxLength={60}
+          invalid={!!nameErr}
+          onChange={(e) => onChange('name', e.target.value)}
+          onBlur={(e) => setClientErrs((prev) => ({ ...prev, name: validateClassName(e.target.value) }))}
+        />
+      </Field>
+      <Field label="Năm học" htmlFor="new-class-year" error={yearErr}>
+        <Input
+          id="new-class-year"
+          name="school_year"
+          defaultValue={thisYear()}
+          maxLength={20}
+          invalid={!!yearErr}
+          onChange={(e) => onChange('school_year', e.target.value)}
+          onBlur={(e) => setClientErrs((prev) => ({ ...prev, school_year: validateYear(e.target.value) }))}
+        />
+      </Field>
+      <Button type="submit" disabled={pending} className="min-h-11 sm:mt-[1.625rem]">Tạo lớp</Button>
+      {state && (state.ok || !state.fieldErrors) && (
+        <div className="sm:col-span-3">
+          <Alert tone={state.ok ? 'ok' : 'pen'}>{state.ok ? state.message : state.error}</Alert>
+        </div>
+      )}
     </form>
   );
 }
@@ -25,14 +90,41 @@ export function ClassRow({ c }: { c: { id: string; name: string; school_year: st
   const [name, setName] = useState(c.name);
   const [err, setErr] = useState('');
   const [pending, start] = useTransition();
+
+  const onSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    const vErr = validateClassName(name);
+    if (vErr) { setErr(vErr); return; }
+    setErr('');
+    start(async () => {
+      const r = await renameClass(c.id, name);
+      if (r.ok) setEditing(false);
+      else setErr(r.fieldErrors?.name ?? r.error);
+    });
+  };
+
   return (
     <li className={cx('group relative flex flex-wrap items-center gap-3 px-4 py-3.5 transition-colors', !editing && 'hover:bg-sunken/70 focus-within:bg-sunken/70', c.archived && 'opacity-65')}>
       {editing ? (
-        <form className="flex flex-1 flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); start(async () => { const r = await renameClass(c.id, name); if (r.ok) setEditing(false); else setErr(r.error); }); }}>
-          <Input value={name} onChange={(e) => setName(e.target.value)} className="max-w-xs" aria-label="Tên lớp" autoFocus />
-          <Button type="submit" disabled={pending}>Lưu</Button>
-          <Button type="button" variant="secondary" onClick={() => { setEditing(false); setName(c.name); }}>Huỷ</Button>
-          {err && <span className="self-center text-sm text-pen">{err}</span>}
+        <form className="grid flex-1 gap-1.5" onSubmit={onSave} noValidate>
+          <div className="flex flex-wrap gap-2">
+            <Input
+              value={name}
+              onChange={(e) => {
+                const v = e.target.value;
+                setName(v);
+                if (err) setErr(validateClassName(v) ?? '');
+              }}
+              onBlur={() => setErr(validateClassName(name) ?? '')}
+              invalid={!!err}
+              className="max-w-xs"
+              aria-label="Tên lớp"
+              autoFocus
+            />
+            <Button type="submit" disabled={pending}>Lưu</Button>
+            <Button type="button" variant="secondary" onClick={() => { setEditing(false); setName(c.name); setErr(''); }}>Huỷ</Button>
+          </div>
+          <FieldError error={err} />
         </form>
       ) : (
         <div className="min-w-0 flex-1">

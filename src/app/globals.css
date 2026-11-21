@@ -147,6 +147,13 @@
   100% { box-shadow: 0 0 0 0 rgb(var(--brand) / 0); }
 }
 
+@keyframes eh-field-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  60% { transform: translateX(3px); }
+  85% { transform: translateX(-1px); }
+}
+
 @layer components {
   .num { font-variant-numeric: tabular-nums; }
 
@@ -182,6 +189,9 @@
   }
   .card-flash {
     animation: eh-card-flash 750ms var(--ease-out);
+  }
+  .field-error-in {
+    animation: eh-field-shake 240ms var(--ease-out);
   }
   .skeleton-shimmer {
     position: relative;
@@ -234,7 +244,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .page-enter, .q-enter-next, .q-enter-prev, .grade-stamp, .bar-grow, .card-flash { animation: none !important; }
+  .page-enter, .q-enter-next, .q-enter-prev, .grade-stamp, .bar-grow, .card-flash, .field-error-in { animation: none !important; }
   .skeleton-shimmer::after { animation: none !important; display: none; }
   .bubble:active { transform: none; }
 }

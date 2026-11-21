@@ -1,13 +1,14 @@
 'use server';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
+import { zodFieldErrors } from '@/lib/validation';
 import { homePathFor, type UserRole } from '@/server/auth';
 import { supabaseAdmin } from '@/server/supabase/admin';
 import { usernameToEmail } from '@/server/supabase/env';
 import { supabaseServer } from '@/server/supabase/server';
 import { recordTrace } from '@/server/trace';
 
-export type FormState = { error?: string; fields?: Record<string, string> } | undefined;
+export type FormState = { error?: string; fieldErrors?: Record<string, string>; fields?: Record<string, string> } | undefined;
 
 const USERNAME = /^[a-z0-9._]{3,30}$/;
 const safeNext = (n: FormDataEntryValue | null) => {
@@ -35,7 +36,12 @@ export async function signIn(_: FormState, form: FormData): Promise<FormState> {
   const password = String(form.get('password') ?? '');
   const next = safeNext(form.get('next'));
   const fields = { username };
-  if (!username || !password) return { error: 'Nhập tên đăng nhập và mật khẩu.', fields };
+  const fieldErrors: Record<string, string> = {};
+  if (!username) fieldErrors.username = 'Vui lòng nhập tên đăng nhập.';
+  if (!password) fieldErrors.password = 'Vui lòng nhập mật khẩu.';
+  if (Object.keys(fieldErrors).length) {
+    return { error: 'Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.', fieldErrors, fields };
+  }
   const supabase = await supabaseServer();
   const { error } = await supabase.auth.signInWithPassword({ email: usernameToEmail(username), password });
   if (error) {
@@ -48,8 +54,18 @@ export async function signIn(_: FormState, form: FormData): Promise<FormState> {
       path: '/dang-nhap',
       message: locked ? 'Tài khoản bị khoá' : 'Sai tên đăng nhập hoặc mật khẩu',
     });
-    if (locked) return { error: 'Tài khoản đang bị khoá. Hãy báo giáo viên.', fields };
-    return { error: 'Sai tên đăng nhập hoặc mật khẩu. Quên mật khẩu thì nhờ giáo viên đặt lại.', fields };
+    if (locked) {
+      return {
+        error: 'Tài khoản đang bị khoá. Hãy báo giáo viên.',
+        fieldErrors: { username: 'Tài khoản này hiện đang bị khoá.' },
+        fields,
+      };
+    }
+    return {
+      error: 'Sai tên đăng nhập hoặc mật khẩu. Quên mật khẩu thì nhờ giáo viên đặt lại.',
+      fieldErrors: { username: 'Kiểm tra lại tên đăng nhập.', password: 'Hoặc mật khẩu chưa đúng.' },
+      fields,
+    };
   }
   const p = await currentProfile();
   void recordTrace({
@@ -80,13 +96,19 @@ export async function register(_: FormState, form: FormData): Promise<FormState>
   const raw = Object.fromEntries(['full_name', 'username', 'password', 'confirm'].map((k) => [k, String(form.get(k) ?? '')]));
   const fields = { full_name: raw.full_name, username: raw.username };
   const parsed = RegisterSchema.safeParse(raw);
-  if (!parsed.success) return { error: parsed.error.issues[0].message, fields };
+  if (!parsed.success) return { error: parsed.error.issues[0].message, fieldErrors: zodFieldErrors(parsed.error), fields };
   const { full_name, username, password } = parsed.data;
   const next = safeNext(form.get('next'));
   const admin = supabaseAdmin();
 
   const { data: taken } = await admin.from('profiles').select('id').ilike('username', username).maybeSingle();
-  if (taken) return { error: `Tên đăng nhập "${username}" đã có người dùng. Hãy chọn tên khác.`, fields };
+  if (taken) {
+    return {
+      error: `Tên đăng nhập "${username}" đã có người dùng. Hãy chọn tên khác.`,
+      fieldErrors: { username: `Tên "${username}" đã có người dùng.` },
+      fields,
+    };
+  }
 
   // Đăng ký qua link Bài giao → xếp tạm vào lớp của Bài giao đó (nếu bài giao có gắn lớp).
   let class_id = '';
@@ -104,7 +126,12 @@ export async function register(_: FormState, form: FormData): Promise<FormState>
   });
   if (error) {
     void recordTrace({ level: 'warn', category: 'auth', event: 'auth_register_failed', username, path: '/dang-ky', message: error.message });
-    return { error: /already/i.test(error.message) ? `Tên đăng nhập "${username}" đã có người dùng.` : 'Chưa tạo được tài khoản. Hãy thử lại.', fields };
+    const dup = /already/i.test(error.message);
+    return {
+      error: dup ? `Tên đăng nhập "${username}" đã có người dùng.` : 'Chưa tạo được tài khoản. Hãy thử lại.',
+      ...(dup ? { fieldErrors: { username: `Tên "${username}" đã có người dùng.` } } : {}),
+      fields,
+    };
   }
 
   const supabase = await supabaseServer();
@@ -126,11 +153,22 @@ export async function changePassword(_: FormState, form: FormData): Promise<Form
   const password = String(form.get('password') ?? '');
   const confirm = String(form.get('confirm') ?? '');
   const next = safeNext(form.get('next'));
-  if (password.length < 6) return { error: 'Mật khẩu cần ít nhất 6 ký tự.' };
-  if (password !== confirm) return { error: 'Hai lần nhập mật khẩu chưa khớp.' };
+  const fieldErrors: Record<string, string> = {};
+  if (!password) fieldErrors.password = 'Vui lòng nhập mật khẩu mới.';
+  else if (password.length < 6) fieldErrors.password = 'Mật khẩu cần ít nhất 6 ký tự.';
+  else if (password.length > 72) fieldErrors.password = 'Mật khẩu tối đa 72 ký tự.';
+  if (!confirm) fieldErrors.confirm = 'Vui lòng nhập lại mật khẩu mới.';
+  else if (password !== confirm) fieldErrors.confirm = 'Hai lần nhập mật khẩu chưa khớp.';
+  if (Object.keys(fieldErrors).length) {
+    return { error: Object.values(fieldErrors)[0], fieldErrors };
+  }
   const supabase = await supabaseServer();
   const { error } = await supabase.auth.updateUser({ password });
-  if (error) return { error: /different|same/i.test(error.message) ? 'Mật khẩu mới phải khác mật khẩu cũ.' : 'Chưa đổi được mật khẩu. Hãy thử lại.' };
+  if (error) {
+    const same = /different|same/i.test(error.message);
+    const msg = same ? 'Mật khẩu mới phải khác mật khẩu cũ.' : 'Chưa đổi được mật khẩu. Hãy thử lại.';
+    return { error: msg, ...(same ? { fieldErrors: { password: msg } } : {}) };
+  }
   await supabase.rpc('clear_must_change_password');
   const p = await currentProfile();
   void recordTrace({ level: 'info', category: 'auth', event: 'auth_password_changed', user_id: p?.id ?? null, username: p?.username ?? null, path: '/doi-mat-khau' });

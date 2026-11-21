@@ -26,6 +26,8 @@ export function StartForm({
   const [editedName, setEditedName] = useState<string | null>(null);
   const guestName = editedName ?? (initialName || savedName);
   const [pw, setPw] = useState('');
+  const [nameErr, setNameErr] = useState('');
+  const [pwErr, setPwErr] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -35,6 +37,21 @@ export function StartForm({
 
   async function start(e: React.FormEvent) {
     e.preventDefault();
+    let bad = false;
+    if (isGuest && guestName.trim().length > 80) {
+      setNameErr('Họ và tên tối đa 80 ký tự.');
+      bad = true;
+    } else {
+      setNameErr('');
+    }
+    if (hasPassword && !pw.trim()) {
+      setPwErr('Vui lòng nhập mật khẩu bài kiểm tra.');
+      bad = true;
+    } else {
+      setPwErr('');
+    }
+    if (bad) return;
+
     setBusy(true);
     setErr('');
     let guestKey: string | null = null;
@@ -65,7 +82,12 @@ export function StartForm({
         meta: { is_guest: isGuest, code: error.code },
         urgent: true,
       });
-      setErr(RPC_MESSAGES[error.message] ?? 'Chưa bắt đầu được. Hãy thử lại.');
+      if (error.message === 'WRONG_PASSWORD') {
+        setPwErr(RPC_MESSAGES.WRONG_PASSWORD);
+        setErr('');
+      } else {
+        setErr(RPC_MESSAGES[error.message] ?? 'Chưa bắt đầu được. Hãy thử lại.');
+      }
       setBusy(false);
       return;
     }
@@ -73,19 +95,24 @@ export function StartForm({
   }
 
   return (
-    <form onSubmit={start} className="grid gap-3.5">
+    <form onSubmit={start} noValidate className="grid gap-3.5">
       {err && <Alert>{err}</Alert>}
       {isGuest && (
         <Field
           label="Họ và tên của bạn (không bắt buộc)"
           htmlFor="guest-name"
           hint="Bỏ trống cũng được — hệ thống sẽ tự đặt tên mặc định."
+          error={nameErr}
         >
           <Input
             id="guest-name"
             value={guestName}
-            onChange={(e) => setEditedName(e.target.value)}
-            maxLength={80}
+            onChange={(e) => {
+              const v = e.target.value;
+              setEditedName(v);
+              setNameErr(v.trim().length > 80 ? 'Họ và tên tối đa 80 ký tự.' : '');
+            }}
+            invalid={!!nameErr}
             autoComplete="name"
             placeholder="Ví dụ: Nguyễn Minh Anh - 12A1"
             suppressHydrationWarning
@@ -93,8 +120,19 @@ export function StartForm({
         </Field>
       )}
       {hasPassword && (
-        <Field label="Mật khẩu bài kiểm tra" htmlFor="pw" hint="Thầy cô sẽ cho bạn mật khẩu.">
-          <Input id="pw" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="off" required />
+        <Field label="Mật khẩu bài kiểm tra" htmlFor="pw" hint="Thầy cô sẽ cho bạn mật khẩu." error={pwErr}>
+          <Input
+            id="pw"
+            value={pw}
+            onChange={(e) => {
+              setPw(e.target.value);
+              if (pwErr) setPwErr(e.target.value.trim() ? '' : 'Vui lòng nhập mật khẩu bài kiểm tra.');
+            }}
+            onBlur={() => { if (!pw.trim()) setPwErr('Vui lòng nhập mật khẩu bài kiểm tra.'); }}
+            invalid={!!pwErr}
+            autoComplete="off"
+            required
+          />
         </Field>
       )}
       <p className="text-sm text-muted">

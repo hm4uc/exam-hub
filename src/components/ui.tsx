@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { AlertCircle, ArrowLeft } from 'lucide-react';
 import type { ComponentProps, ReactNode } from 'react';
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
@@ -23,29 +23,55 @@ export function ButtonLink({ variant = 'primary', className, ...p }: ComponentPr
   return <Link className={cx(BTN_BASE, BTN[variant], className)} {...p} />;
 }
 
+export function FieldError({ error, id, className }: { error?: string; id?: string; className?: string }) {
+  if (!error) return null;
+  return (
+    <p id={id} role="alert" className={cx('field-error-in inline-flex items-start gap-1.5 text-xs font-medium text-pen', className)}>
+      <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+      <span>{error}</span>
+    </p>
+  );
+}
+
+/** Đưa con trỏ tới ô nhập đầu tiên đang có lỗi trong biểu mẫu. */
+export function focusFirstError(form: HTMLFormElement, errs: Record<string, string | undefined>) {
+  for (const [name, msg] of Object.entries(errs)) {
+    if (!msg) continue;
+    const el = form.querySelector<HTMLElement>(`[name="${name}"]:not([type="hidden"]), #${name}, [id$="${name}-local"]`);
+    if (el && typeof el.focus === 'function') {
+      el.focus();
+      return;
+    }
+  }
+}
+
 export function Field({ label, hint, error, children, htmlFor }: { label: string; hint?: ReactNode; error?: string; children: ReactNode; htmlFor?: string }) {
   return (
     <div className="grid gap-1.5">
-      <label htmlFor={htmlFor} className="text-sm font-medium">{label}</label>
+      <label htmlFor={htmlFor} className={cx('text-sm font-medium transition-colors', error && 'text-pen')}>{label}</label>
       {children}
-      {error ? <p className="text-sm text-pen">{error}</p> : hint ? <p className="text-sm text-muted">{hint}</p> : null}
+      {error ? (
+        <FieldError error={error} />
+      ) : hint ? (
+        <p className="text-xs leading-relaxed text-muted">{hint}</p>
+      ) : null}
     </div>
   );
 }
 
 export const inputClass =
-  'block w-full min-h-11 rounded-lg border border-line bg-surface px-3 py-2 text-base text-ink placeholder:text-muted/75 transition-colors hover:border-muted/50 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25 disabled:bg-sunken';
+  'block w-full min-h-11 rounded-lg border border-line bg-surface px-3 py-2 text-base text-ink placeholder:text-muted/75 transition-colors hover:border-muted/50 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25 disabled:bg-sunken aria-[invalid=true]:border-pen aria-[invalid=true]:bg-pen-soft/35 aria-[invalid=true]:hover:border-pen aria-[invalid=true]:focus:border-pen aria-[invalid=true]:focus:ring-pen/25';
 
-export function Input({ className, ...p }: ComponentProps<'input'>) {
-  return <input className={cx(inputClass, className)} {...p} />;
+export function Input({ className, invalid, ...p }: ComponentProps<'input'> & { invalid?: boolean }) {
+  return <input aria-invalid={invalid || p['aria-invalid'] || undefined} className={cx(inputClass, className)} {...p} />;
 }
 
-export function Select({ className, ...p }: ComponentProps<'select'>) {
-  return <select className={cx(inputClass, 'cursor-pointer pr-8', className)} {...p} />;
+export function Select({ className, invalid, ...p }: ComponentProps<'select'> & { invalid?: boolean }) {
+  return <select aria-invalid={invalid || p['aria-invalid'] || undefined} className={cx(inputClass, 'cursor-pointer pr-8', className)} {...p} />;
 }
 
-export function Textarea({ className, ...p }: ComponentProps<'textarea'>) {
-  return <textarea className={cx(inputClass, 'min-h-24 leading-relaxed', className)} {...p} />;
+export function Textarea({ className, invalid, ...p }: ComponentProps<'textarea'> & { invalid?: boolean }) {
+  return <textarea aria-invalid={invalid || p['aria-invalid'] || undefined} className={cx(inputClass, 'min-h-24 leading-relaxed', className)} {...p} />;
 }
 
 export function Panel({ className, ...p }: ComponentProps<'section'>) {

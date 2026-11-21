@@ -4,13 +4,14 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
+import { zodFieldErrors } from '@/lib/validation';
 import { requireTeacher } from '@/server/auth';
 import { supabaseAdmin } from '@/server/supabase/admin';
 import { usernameToEmail } from '@/server/supabase/env';
 import { supabaseServer } from '@/server/supabase/server';
 import { recordTrace } from '@/server/trace';
 
-export type Res = { ok: true; message?: string; password?: string } | { ok: false; error: string };
+export type Res = { ok: true; message?: string; password?: string } | { ok: false; error: string; fieldErrors?: Record<string, string> };
 
 const uuid = z.string().uuid();
 const Username = z.string().trim().toLowerCase().regex(/^[a-z0-9._]{3,30}$/, 'Tên đăng nhập dài 3–30 ký tự: chữ không dấu, số, dấu chấm, gạch dưới.');
@@ -46,9 +47,12 @@ const CreateSchema = z.object({
 export async function createAccount(_: unknown, form: FormData): Promise<Res> {
   await requireTeacher();
   const parsed = CreateSchema.safeParse(Object.fromEntries(['full_name', 'username', 'role', 'class_id', 'password'].map((k) => [k, String(form.get(k) ?? '')])));
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message, fieldErrors: zodFieldErrors(parsed.error) };
   const { full_name, username, role, class_id } = parsed.data;
-  if (await usernameTaken(username)) return { ok: false, error: `Tên đăng nhập "${username}" đã có người dùng.` };
+  if (await usernameTaken(username)) {
+    const msg = `Tên đăng nhập "${username}" đã có người dùng.`;
+    return { ok: false, error: msg, fieldErrors: { username: msg } };
+  }
   const generated = !parsed.data.password;
   const password = parsed.data.password || tempPassword();
   const admin = supabaseAdmin();
@@ -71,9 +75,9 @@ export async function updateAccount(id: string, _: unknown, form: FormData): Pro
   const me = await requireTeacher();
   if (!uuid.safeParse(id).success) return { ok: false, error: 'Tài khoản không hợp lệ.' };
   const parsed = UpdateSchema.safeParse(Object.fromEntries(['full_name', 'username', 'role', 'class_id'].map((k) => [k, String(form.get(k) ?? '')])));
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message, fieldErrors: zodFieldErrors(parsed.error) };
   const { full_name, username, role, class_id } = parsed.data;
-  if (id === me.id && role !== 'teacher') return { ok: false, error: 'Bạn không thể tự bỏ quyền giáo viên của mình.' };
+  if (id === me.id && role !== 'teacher') return { ok: false, error: 'Bạn không thể tự bỏ quyền giáo viên của mình.', fieldErrors: { role: 'Không thể tự bỏ quyền giáo viên.' } };
 
   const admin = supabaseAdmin();
   const { data: cur } = await admin.from('profiles').select('username, role').eq('id', id).maybeSingle();
@@ -81,7 +85,10 @@ export async function updateAccount(id: string, _: unknown, form: FormData): Pro
   if (cur.role === 'admin' && me.role !== 'admin') return { ok: false, error: 'Không thể sửa tài khoản quản trị.' };
   const nextRole = cur.role === 'admin' ? 'admin' : role;
   if (username !== cur.username) {
-    if (await usernameTaken(username, id)) return { ok: false, error: `Tên đăng nhập "${username}" đã có người dùng.` };
+    if (await usernameTaken(username, id)) {
+      const msg = `Tên đăng nhập "${username}" đã có người dùng.`;
+      return { ok: false, error: msg, fieldErrors: { username: msg } };
+    }
     const { error } = await admin.auth.admin.updateUserById(id, { email: usernameToEmail(username), email_confirm: true, user_metadata: { username } });
     if (error) return { ok: false, error: 'Chưa đổi được tên đăng nhập.' };
   }
@@ -90,7 +97,9 @@ export async function updateAccount(id: string, _: unknown, form: FormData): Pro
   if (error) {
     // Hoàn lại email đăng nhập nếu bước sau lỗi, để tài khoản không bị lệch.
     if (username !== cur.username) await admin.auth.admin.updateUserById(id, { email: usernameToEmail(cur.username), user_metadata: { username: cur.username } });
-    return { ok: false, error: error.code === '23505' ? `Tên đăng nhập "${username}" đã có người dùng.` : 'Chưa lưu được.' };
+    const dup = error.code === '23505';
+    const msg = dup ? `Tên đăng nhập "${username}" đã có người dùng.` : 'Chưa lưu được.';
+    return { ok: false, error: msg, ...(dup ? { fieldErrors: { username: msg } } : {}) };
   }
   refresh(id);
   return { ok: true, message: 'Đã lưu.' };
@@ -108,8 +117,12 @@ export async function setStudentClass(id: string, classId: string | null): Promi
 
 export async function renameAccount(id: string, fullName: string): Promise<Res> {
   await requireTeacher();
+  if (!uuid.safeParse(id).success) return { ok: false, error: 'Tài khoản không hợp lệ.' };
   const name = FullName.safeParse(fullName);
-  if (!uuid.safeParse(id).success || !name.success) return { ok: false, error: 'Họ tên không hợp lệ.' };
+  if (!name.success) {
+    const msg = name.error.issues[0].message;
+    return { ok: false, error: msg, fieldErrors: { full_name: msg } };
+  }
   const supabase = await supabaseServer();
   const { error } = await supabase.from('profiles').update({ full_name: name.data }).eq('id', id);
   if (error) return { ok: false, error: 'Chưa đổi được tên.' };
@@ -124,7 +137,13 @@ export async function setPassword(id: string, password: string, mustChange: bool
   const me = await requireTeacher();
   if (!uuid.safeParse(id).success) return { ok: false, error: 'Tài khoản không hợp lệ.' };
   const generated = !password;
-  if (!generated) { const p = Password.safeParse(password); if (!p.success) return { ok: false, error: p.error.issues[0].message }; }
+  if (!generated) {
+    const p = Password.safeParse(password);
+    if (!p.success) {
+      const msg = p.error.issues[0].message;
+      return { ok: false, error: msg, fieldErrors: { password: msg } };
+    }
+  }
   const pw = password || tempPassword();
   const admin = supabaseAdmin();
   const { error } = await admin.auth.admin.updateUserById(id, { password: pw });

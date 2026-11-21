@@ -2,8 +2,9 @@
 import { ArrowLeft, ChevronLeft, ChevronRight, Eye, EyeOff, LayoutList, Square } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
-import { Badge, Button, cx } from '@/components/ui';
+import { Badge, Button, FieldError, cx } from '@/components/ui';
 import { TYPE_NAME, type QType } from '@/domain/exam/types';
+import { validateShortAnswerText } from '@/lib/validation';
 
 export interface PreviewQuestion {
   id: string;
@@ -132,26 +133,33 @@ export function ExamPreviewClient({
         </div>
       )}
 
-      {item.type === 'short' && (
-        <div className="mt-4">
-          <label htmlFor={`pv-sa-${item.id}`} className="text-sm text-muted">Đáp số (chọn thử không lưu)</label>
-          <input
-            id={`pv-sa-${item.id}`}
-            inputMode="decimal"
-            autoComplete="off"
-            maxLength={12}
-            placeholder="Ví dụ: -2,5"
-            value={answers[item.id] ?? ''}
-            onChange={(e) => setAns(item.id, e.target.value.replace(/[^\d,.\-]/g, ''))}
-            className="mt-1.5 block w-full max-w-[14rem] rounded-xl border border-line bg-surface px-4 py-3 text-xl font-semibold tabular-nums focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25"
-          />
-          {showKey && (
-            <p className="mt-2 text-sm text-ok">
-              Đáp án: <b className="num">{(item.answer as string[]).join(' hoặc ')}</b>
-            </p>
-          )}
-        </div>
-      )}
+      {item.type === 'short' && (() => {
+        const shortErr = validateShortAnswerText(answers[item.id] ?? '', false);
+        return (
+          <div className="mt-4">
+            <label htmlFor={`pv-sa-${item.id}`} className={cx('text-sm transition-colors', shortErr ? 'font-medium text-pen' : 'text-muted')}>
+              Đáp số (chọn thử không lưu)
+            </label>
+            <input
+              id={`pv-sa-${item.id}`}
+              inputMode="decimal"
+              autoComplete="off"
+              maxLength={16}
+              placeholder="Ví dụ: -2,5"
+              value={answers[item.id] ?? ''}
+              onChange={(e) => setAns(item.id, e.target.value)}
+              aria-invalid={!!shortErr || undefined}
+              className="mt-1.5 block w-full max-w-[14rem] rounded-xl border border-line bg-surface px-4 py-3 text-xl font-semibold tabular-nums transition-colors focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25 aria-[invalid=true]:border-pen aria-[invalid=true]:bg-pen-soft/35 aria-[invalid=true]:focus:border-pen aria-[invalid=true]:focus:ring-pen/25"
+            />
+            <FieldError error={shortErr} className="mt-1.5" />
+            {showKey && (
+              <p className="mt-2 text-sm text-ok">
+                Đáp án: <b className="num">{(item.answer as string[]).join(' hoặc ')}</b>
+              </p>
+            )}
+          </div>
+        );
+      })()}
 
       {showKey && item.solution_html && (
         <details className="mt-4 rounded-lg bg-sunken px-3 py-2 text-sm">

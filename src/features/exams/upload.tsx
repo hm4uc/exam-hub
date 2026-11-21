@@ -9,6 +9,7 @@ import type { DocxParse } from '@/domain/exam/docx';
 import { normNum, normTF } from '@/domain/exam/parse';
 import { IMAGE_BUCKET } from '@/domain/exam/question-io';
 import { TYPE_NAME, type ParsedQuestion, type QuestionInput } from '@/domain/exam/types';
+import { validateTitle } from '@/lib/validation';
 import { supabaseBrowser } from '@/server/supabase/client';
 import { createExam } from './actions';
 import { onDroppedFile } from './dropped-file';
@@ -28,6 +29,7 @@ export function UploadClient() {
   const [parsed, setParsed] = useState<DocxParse | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [title, setTitle] = useState('');
+  const [titleTouched, setTitleTouched] = useState(false);
   const [busy, setBusy] = useState<'' | 'parse' | 'save'>('');
   const [err, setErr] = useState('');
 
@@ -48,6 +50,7 @@ export function UploadClient() {
       setParsed(res);
       setItems(res.questions.map((q) => ({ q, include: true, answer: q.answer })));
       setTitle(f.name.replace(/\.docx$/i, '').replace(/[_]+/g, ' ').trim());
+      setTitleTouched(false);
     } catch (e) {
       setParsed(null); setItems([]);
       setErr((e as Error).message || 'Không đọc được file.');
@@ -68,7 +71,8 @@ export function UploadClient() {
   });
   const included = items.filter((i) => i.include).length;
   const problems = status.filter((s) => !s.ok).length;
-  const canSave = !!parsed && included > 0 && problems === 0 && title.trim() !== '' && !busy;
+  const titleErr = titleTouched ? validateTitle(title, 'tên đề') : undefined;
+  const canSave = !!parsed && included > 0 && problems === 0 && !validateTitle(title, 'tên đề') && !busy;
 
   async function save() {
     if (!parsed || !file) return;
@@ -124,9 +128,23 @@ export function UploadClient() {
       {parsed && (
         <>
           {parsed.errors.map((e) => <Alert key={e}>{e}</Alert>)}
-          <div className="grid gap-4 rounded-xl border border-line bg-surface p-4 sm:grid-cols-[1fr_auto] sm:items-end">
-            <Field label="Tên đề" htmlFor="title"><Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} /></Field>
-            <Button onClick={save} disabled={!canSave}>{busy === 'save' ? 'Đang lưu & tạo link…' : `Lưu đề & tạo link (${included} câu)`}</Button>
+          <div className="grid gap-4 rounded-xl border border-line bg-surface p-4 sm:grid-cols-[1fr_auto] sm:items-start">
+            <Field label="Tên đề" htmlFor="title" error={titleErr}>
+              <Input
+                id="title"
+                value={title}
+                invalid={!!titleErr}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  if (!titleTouched) setTitleTouched(true);
+                }}
+                onBlur={() => setTitleTouched(true)}
+                maxLength={200}
+              />
+            </Field>
+            <Button onClick={save} disabled={!canSave} className="min-h-11 sm:mt-[1.625rem]">
+              {busy === 'save' ? 'Đang lưu & tạo link…' : `Lưu đề & tạo link (${included} câu)`}
+            </Button>
             <div className="flex flex-wrap gap-2 text-sm sm:col-span-2">
               <Badge>{items.length} câu tìm thấy</Badge>
               {(['mcq', 'tf', 'short'] as const).map((t) => { const n = items.filter((i) => i.q.type === t).length; return n ? <Badge key={t}>{TYPE_NAME[t]}: {n}</Badge> : null; })}

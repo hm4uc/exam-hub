@@ -2,11 +2,12 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
+import { zodFieldErrors } from '@/lib/validation';
 import { requireTeacher } from '@/server/auth';
 import { supabaseServer } from '@/server/supabase/server';
 import { recordTrace } from '@/server/trace';
 
-export type AsgState = { error?: string; ok?: boolean } | undefined;
+export type AsgState = { error?: string; fieldErrors?: Record<string, string>; ok?: boolean } | undefined;
 
 const OptionalUuid = z.union([z.literal(''), z.string().uuid({ message: 'Lớp không hợp lệ.' })]).transform((v) => v || null);
 const OptionalDate = z.union([z.literal(''), z.string().datetime({ offset: true, message: 'Giờ đóng không hợp lệ.' })]).transform((v) => v || null);
@@ -16,18 +17,29 @@ const Schema = z
     exam_id: z.string().uuid(),
     class_id: OptionalUuid,
     restrict_to_class: z.boolean(),
-    title: z.string().trim().min(1, 'Nhập tên bài.').max(200),
+    title: z.string().trim().min(1, 'Vui lòng nhập tên bài.').max(200, 'Tên bài tối đa 200 ký tự.'),
     opens_at: z.string().datetime({ offset: true, message: 'Giờ mở không hợp lệ.' }),
     closes_at: OptionalDate,
-    duration_minutes: z.coerce.number().int().min(1, 'Thời gian làm ít nhất 1 phút.').max(600),
-    max_attempts: z.coerce.number().int().min(1).max(20),
+    duration_minutes: z.coerce
+      .number({ message: 'Thời gian phải là số nguyên từ 1 đến 600 phút.' })
+      .int('Thời gian phải là số nguyên từ 1 đến 600 phút.')
+      .min(1, 'Thời gian phải từ 1 đến 600 phút.')
+      .max(600, 'Thời gian phải từ 1 đến 600 phút.'),
+    max_attempts: z.coerce
+      .number({ message: 'Số lượt làm phải là số nguyên từ 1 đến 20.' })
+      .int('Số lượt làm phải là số nguyên từ 1 đến 20.')
+      .min(1, 'Số lượt làm phải từ 1 đến 20.')
+      .max(20, 'Số lượt làm phải từ 1 đến 20.'),
     shuffle_questions: z.boolean(),
     shuffle_choices: z.boolean(),
-    access_password: z.string().trim().max(40),
+    access_password: z.string().trim().max(40, 'Mật khẩu tối đa 40 ký tự.'),
     result_mode: z.enum(['none', 'score', 'score_answers']),
     result_release: z.enum(['on_submit', 'after_close']),
   })
-  .refine((v) => !v.closes_at || new Date(v.closes_at) > new Date(v.opens_at), { message: 'Giờ đóng phải sau giờ mở.' });
+  .refine((v) => !v.closes_at || new Date(v.closes_at) > new Date(v.opens_at), {
+    message: 'Giờ đóng phải sau giờ mở.',
+    path: ['closes_at'],
+  });
 
 const fromForm = (f: FormData) => ({
   exam_id: String(f.get('exam_id') ?? ''),
@@ -48,7 +60,7 @@ const fromForm = (f: FormData) => ({
 export async function createAssignment(_: AsgState, form: FormData): Promise<AsgState> {
   const me = await requireTeacher();
   const parsed = Schema.safeParse(fromForm(form));
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  if (!parsed.success) return { error: parsed.error.issues[0].message, fieldErrors: zodFieldErrors(parsed.error) };
   const v = parsed.data;
   const supabase = await supabaseServer();
   const { data, error } = await supabase
@@ -122,20 +134,31 @@ export async function createQuickAssignment(examId: string) {
 
 const UpdateSchema = z
   .object({
-    title: z.string().trim().min(1, 'Nhập tên bài.').max(200),
+    title: z.string().trim().min(1, 'Vui lòng nhập tên bài.').max(200, 'Tên bài tối đa 200 ký tự.'),
     class_id: OptionalUuid,
     restrict_to_class: z.boolean(),
     opens_at: z.string().datetime({ offset: true, message: 'Giờ mở không hợp lệ.' }),
     closes_at: OptionalDate,
-    duration_minutes: z.coerce.number().int().min(1, 'Thời gian làm ít nhất 1 phút.').max(600),
-    max_attempts: z.coerce.number().int().min(1).max(20),
+    duration_minutes: z.coerce
+      .number({ message: 'Thời gian phải là số nguyên từ 1 đến 600 phút.' })
+      .int('Thời gian phải là số nguyên từ 1 đến 600 phút.')
+      .min(1, 'Thời gian phải từ 1 đến 600 phút.')
+      .max(600, 'Thời gian phải từ 1 đến 600 phút.'),
+    max_attempts: z.coerce
+      .number({ message: 'Số lượt làm phải là số nguyên từ 1 đến 20.' })
+      .int('Số lượt làm phải là số nguyên từ 1 đến 20.')
+      .min(1, 'Số lượt làm phải từ 1 đến 20.')
+      .max(20, 'Số lượt làm phải từ 1 đến 20.'),
     shuffle_questions: z.boolean(),
     shuffle_choices: z.boolean(),
     result_mode: z.enum(['none', 'score', 'score_answers']),
     result_release: z.enum(['on_submit', 'after_close']),
-    access_password: z.string().trim().max(40),
+    access_password: z.string().trim().max(40, 'Mật khẩu tối đa 40 ký tự.'),
   })
-  .refine((v) => !v.closes_at || new Date(v.closes_at) > new Date(v.opens_at), { message: 'Giờ đóng phải sau giờ mở.' });
+  .refine((v) => !v.closes_at || new Date(v.closes_at) > new Date(v.opens_at), {
+    message: 'Giờ đóng phải sau giờ mở.',
+    path: ['closes_at'],
+  });
 
 export async function updateAssignment(id: string, _: AsgState, form: FormData): Promise<AsgState> {
   await requireTeacher();
@@ -153,7 +176,7 @@ export async function updateAssignment(id: string, _: AsgState, form: FormData):
     result_release: String(form.get('result_release') ?? 'on_submit'),
     access_password: String(form.get('access_password') ?? ''),
   });
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  if (!parsed.success) return { error: parsed.error.issues[0].message, fieldErrors: zodFieldErrors(parsed.error) };
   const v = parsed.data;
   const supabase = await supabaseServer();
   const { data: updated, error } = await supabase
