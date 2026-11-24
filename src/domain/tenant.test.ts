@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assignmentCodeFromPath, loginCandidates, maxLocalLength, withTeacherPrefix, withoutTeacherPrefix } from './tenant';
+import { assignmentCodeFromPath, loginCandidates, maxLocalLength, teacherCodeBase, withTeacherPrefix, withoutTeacherPrefix } from './tenant';
 
 describe('tên đăng nhập theo giáo viên', () => {
   it('thêm tiền tố một lần, không lặp', () => {
@@ -26,5 +26,13 @@ describe('tên đăng nhập theo giáo viên', () => {
     expect(assignmentCodeFromPath('/ABC234/lam')).toBe('abc234');
     expect(assignmentCodeFromPath('/gv/de')).toBeNull();
     expect(assignmentCodeFromPath('/abc2345')).toBeNull();
+  });
+});
+
+describe('mã giáo viên suy từ tên đăng nhập', () => {
+  it('chỉ giữ chữ thường và số, đủ độ dài', () => {
+    expect(teacherCodeBase('Thay.Minh_2026')).toBe('thayminh20');
+    expect(teacherCodeBase('a')).toBe('agv');
+    expect(teacherCodeBase('..')).toBe('gv');
   });
 });

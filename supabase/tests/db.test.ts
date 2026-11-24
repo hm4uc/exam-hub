@@ -406,3 +406,29 @@ describe('đa giáo viên: cô lập dữ liệu giữa hai giáo viên', () => 
     await db.exec('reset role');
   });
 });
+
+describe('mã mời giáo viên', () => {
+  const ins = (code: string, extra = '') => db.query(`insert into public.teacher_invites (code, ${extra ? extra.split('=')[0] + ',' : ''} max_uses) values ($1, ${extra ? extra.split('=')[1] + ',' : ''} 2)`, [code]);
+  const use = async (code: string) => (await one<{ ok: boolean }>(`select public.use_teacher_invite($1) ok`, [code])).ok;
+
+  it('dùng đến hết lượt rồi chặn; hoàn lượt được', async () => {
+    await ins('abcdefghjk');
+    expect([await use('ABCDEFGHJK'), await use('abcdefghjk'), await use('abcdefghjk')]).toEqual([true, true, false]);
+    await db.query(`select public.release_teacher_invite('abcdefghjk')`);
+    expect(await use('abcdefghjk')).toBe(true);
+  });
+
+  it('mã hết hạn hoặc không tồn tại bị từ chối', async () => {
+    await ins('mnpqrstuvw', `expires_at = now() - interval '1 minute'`);
+    expect(await use('mnpqrstuvw')).toBe(false);
+    expect(await use('zzzzzzzzzz')).toBe(false);
+  });
+
+  it('người dùng thường không đọc được bảng, không gọi được hàm', async () => {
+    await db.exec('set role authenticated');
+    await as(null);
+    expect((await db.query(`select * from public.teacher_invites`)).rows).toHaveLength(0);
+    await expect(db.query(`select public.use_teacher_invite('abcdefghjk')`)).rejects.toThrow(/permission denied/);
+    await db.exec('reset role');
+  });
+});

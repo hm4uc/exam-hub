@@ -32,3 +32,9 @@ export function loginCandidates(typed: string, linkTeacherCode: string | null | 
   if (!linkTeacherCode || u.startsWith(`${linkTeacherCode}.`)) return [u];
   return [`${linkTeacherCode}.${u}`, u];
 }
+
+/** Gốc mã giáo viên suy từ tên đăng nhập: chữ thường + số, tối đa 10 ký tự, tối thiểu 2. Thêm số đuôi khi trùng. */
+export function teacherCodeBase(username: string): string {
+  const base = username.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10);
+  return base.length >= 2 ? base : `${base}gv`;
+}
