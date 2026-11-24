@@ -31,6 +31,29 @@ Web kiểm tra trực tuyến cho một giáo viên Toán: tải đề Word → 
 - Dependabot mở PR cập nhật thư viện hằng tuần.
 - Migration CSDL **không** tự chạy: khi thêm file vào `supabase/migrations/`, chạy `node scripts/setup-supabase.mjs --only=migrate` (cần `.env.deploy`) trước khi push code dùng đến nó.
 
+### Quy trình phát hành (khuyến nghị)
+
+Mọi thay đổi đi qua nhánh + Pull Request, không đẩy thẳng lên `main`:
+
+1. Làm trên nhánh `feat/…`; Vercel tự tạo bản **Preview** cho nhánh để thử trước.
+2. Mở PR; CI (lint, typecheck, test, build) phải xanh.
+3. Nếu có file mới trong `supabase/migrations/`: chạy migration lên Supabase **staging** → thử → rồi lên production **trước khi** merge.
+4. Merge PR vào `main` (Vercel deploy production).
+
+Để quy trình này được **ép buộc** (cần làm một lần trên GitHub, repo Settings → Branches → Add rule cho `main`): bật *Require a pull request before merging* và *Require status checks to pass* (chọn job "Lint, typecheck, test, build"), bỏ quyền push thẳng. Nên tạo thêm một project Supabase thứ hai làm staging (gói Free cho 2 project) với biến môi trường riêng cho Preview.
+
+### Sao lưu và khôi phục
+
+`.github/workflows/backup.yml` chạy mỗi ngày 02:30 (giờ VN): dump Postgres (schema `public` + `auth`) và tải hai bucket Storage, nén, **mã hoá bằng mật khẩu** rồi lưu thành artifact 30 ngày. Cần đặt secret cho repo: `SUPABASE_DB_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `BACKUP_PASSPHRASE` (cất mật khẩu này ở nơi an toàn, mất là không giải mã được). Bấm *Run workflow* một lần để kiểm tra.
+
+Khôi phục (nên thử vào project staging trước, chưa thử trên dữ liệu thật):
+
+```bash
+gpg --decrypt exam-hub-YYYYMMDD.tar.gz.gpg | tar -xz        # ra db.dump và thư mục storage/
+pg_restore --no-owner --clean --if-exists -d "<chuỗi kết nối>" db.dump
+# ảnh/đề gốc: tải lại các file trong storage/<bucket>/… lên đúng bucket cùng đường dẫn
+```
+
 ## Phát triển
 
 ```bash

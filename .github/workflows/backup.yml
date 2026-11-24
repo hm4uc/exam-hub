@@ -1,0 +1,59 @@
+name: Backup
+
+# Sao lưu hằng ngày CSDL + Storage, mã hoá bằng mật khẩu rồi lưu thành artifact (giữ 30 ngày).
+# Cần các secret của repo: SUPABASE_DB_URL (chuỗi kết nối Postgres, nên dùng bản "Session pooler"),
+# NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, BACKUP_PASSPHRASE (tự đặt, cất ở nơi an toàn: mất là không giải mã được).
+# Khôi phục: xem mục "Sao lưu và khôi phục" trong README.
+on:
+  schedule:
+    - cron: '30 19 * * *'   # 02:30 giờ Việt Nam
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Cài postgresql-client 17
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
+      - run: npm ci
+      - name: Dump CSDL và tải Storage
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p out/storage
+          # --no-owner/--no-privileges: khôi phục được vào project Supabase khác. Chỉ schema public + auth (tài khoản).
+          pg_dump "$SUPABASE_DB_URL" --format=custom --no-owner --no-privileges \
+            --schema=public --schema=auth --file=out/db.dump
+          node scripts/backup-storage.mjs out/storage
+      - name: Nén và mã hoá
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          test -n "$BACKUP_PASSPHRASE"
+          tar -czf backup.tar.gz -C out .
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$BACKUP_PASSPHRASE" \
+            --symmetric --cipher-algo AES256 -o "exam-hub-$(date -u +%Y%m%d).tar.gz.gpg" backup.tar.gz
+          ls -l *.gpg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exam-hub-backup
+          path: '*.tar.gz.gpg'
+          retention-days: 30
+          if-no-files-found: error
