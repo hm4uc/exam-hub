@@ -123,6 +123,14 @@ try {
   check('bài giới hạn lớp yêu cầu khách đăng nhập', (await anonClient.rpc('start_attempt', { p_code: lockedAsg.code, p_guest_key: gKey2 })).error?.message === 'LOGIN_REQUIRED');
 
   // Luồng mới: vai trò admin & RLS bảng trace_events
+  // Các truy vấn nhúng của ứng dụng không được mơ hồ (PGRST201) — lỗi này từng khiến getMe trả rỗng và mọi người bị đăng xuất
+  const meCols = 'id, role, username, full_name, class_id, teacher_code, is_locked, must_change_password, classes!profiles_class_id_fkey(name)';
+  check('getMe (giáo viên) không lỗi nhúng', (await t.c.from('profiles').select(meCols).eq('id', t.id).maybeSingle()).error == null);
+  check('getMe (học sinh) không lỗi nhúng', (await s.c.from('profiles').select(meCols).eq('id', s.id).maybeSingle()).error == null);
+  check('trang Lớp không lỗi nhúng', (await t.c.from('classes').select('id, name, profiles!profiles_class_id_fkey(count), assignments(count)')).error == null);
+  check('trang Tổng quan không lỗi nhúng', (await t.c.from('assignments').select('id, title, classes(name), attempts(count)')).error == null);
+  check('trang Đề thi không lỗi nhúng', (await t.c.from('exams').select('id, title, questions(count), assignments(count)')).error == null);
+
   // Đa giáo viên: giáo viên thứ hai không thấy / không dùng được dữ liệu của giáo viên thứ nhất
   const t2 = await user('teacher', { teacher_code: `smj${tag}` }, 'teacher2'); ids.push(t2.id);
   check('giáo viên khác không thấy đề', ((await t2.c.from('exams').select('id').eq('id', exam.id)).data ?? []).length === 0);

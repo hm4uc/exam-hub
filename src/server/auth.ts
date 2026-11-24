@@ -25,7 +25,7 @@ export const getMe = cache(async (): Promise<Me | null> => {
   if (!uid) return null;
   const { data: p } = await supabase
     .from('profiles')
-    .select('id, role, username, full_name, class_id, teacher_code, is_locked, must_change_password, classes(name)')
+    .select('id, role, username, full_name, class_id, teacher_code, is_locked, must_change_password, classes!profiles_class_id_fkey(name)')
     .eq('id', uid)
     .maybeSingle();
   if (!p) return null;

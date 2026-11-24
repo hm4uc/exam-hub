@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: 'Lớp' };
 export default async function ClassesPage() {
   const supabase = await supabaseServer();
   const [{ data: classes }, { count: unassigned }] = await Promise.all([
-    supabase.from('classes').select('id, name, school_year, archived_at, profiles(count), assignments(count)')
+    supabase.from('classes').select('id, name, school_year, archived_at, profiles!profiles_class_id_fkey(count), assignments(count)')
       .order('archived_at', { nullsFirst: true }).order('name'),
     supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'student').is('class_id', null),
   ]);
