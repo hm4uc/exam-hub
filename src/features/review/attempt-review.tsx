@@ -13,7 +13,7 @@ import {
 import { TYPE_NAME } from '@/domain/exam/types';
 import { fmtDateTime, fmtNum, fmtScore } from '@/lib/format';
 
-const LETTERS = 'ABCD';
+const LETTERS = 'ABCDEF';
 
 const STATUS_META: Record<
   ReviewStatus,

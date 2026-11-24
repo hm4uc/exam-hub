@@ -11,6 +11,7 @@ export interface Me {
   username: string;
   full_name: string;
   class_id: string | null;
+  teacher_code: string | null;
   is_locked: boolean;
   must_change_password: boolean;
   class_name: string | null;
@@ -24,7 +25,7 @@ export const getMe = cache(async (): Promise<Me | null> => {
   if (!uid) return null;
   const { data: p } = await supabase
     .from('profiles')
-    .select('id, role, username, full_name, class_id, is_locked, must_change_password, classes(name)')
+    .select('id, role, username, full_name, class_id, teacher_code, is_locked, must_change_password, classes(name)')
     .eq('id', uid)
     .maybeSingle();
   if (!p) return null;

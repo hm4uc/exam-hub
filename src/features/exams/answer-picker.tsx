@@ -4,7 +4,7 @@ import { FieldError, cx } from '@/components/ui';
 import { normNum } from '@/domain/exam/parse';
 import type { QType } from '@/domain/exam/types';
 
-/** Chọn/sửa đáp án đúng cho một câu: A–D, 4 ý Đ/S, hoặc danh sách số chấp nhận. */
+/** Chọn/sửa đáp án đúng cho một câu: một phương án, 2–4 ý Đ/S, hoặc danh sách số chấp nhận. */
 export function AnswerPicker({
   type,
   labels,
@@ -36,7 +36,8 @@ export function AnswerPicker({
     );
   }
   if (type === 'tf') {
-    const v = (typeof value === 'string' ? value : '____').padEnd(4, '_');
+    const n = labels.length;
+    const v = (typeof value === 'string' ? value : '').padEnd(n, '_').slice(0, n);
     return (
       <div className="grid gap-1.5">
         <div className="flex flex-wrap gap-3">

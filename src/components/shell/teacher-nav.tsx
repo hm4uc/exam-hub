@@ -18,7 +18,7 @@ function Indicator({ active }: { active: boolean }) {
 
 export function TeacherNav({ isAdmin = false }: { isAdmin?: boolean }) {
   const path = usePathname();
-  const items = isAdmin ? [...ITEMS, { href: '/admin', label: 'Nhật ký hệ thống', exact: false }] : ITEMS;
+  const items = isAdmin ? [...ITEMS, { href: '/admin', label: 'Quản trị', exact: false }] : ITEMS;
   return (
     <nav aria-label="Chính" className="flex overflow-x-auto [scrollbar-width:none]">
       {items.map((i) => {

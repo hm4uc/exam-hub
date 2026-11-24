@@ -5,6 +5,7 @@ import { COOKIE_OPTIONS, SUPABASE_ANON_KEY, SUPABASE_URL } from '@/server/supaba
 const PUBLIC = [
   '/dang-nhap',
   '/dang-ky',
+  '/dang-ky-giao-vien',
   '/thiet-bi-chua-ho-tro',
   '/api/keepalive',
   '/api/trace',

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
+import { clientKey, rateLimit } from '@/server/rate-limit';
 import { supabaseAdmin } from '@/server/supabase/admin';
 import { supabaseServer } from '@/server/supabase/server';
 
@@ -40,13 +41,26 @@ function isExtensionNoise(e: z.infer<typeof EventSchema>): boolean {
   return EXTENSION_RE.test(stack) || EXTENSION_RE.test(file);
 }
 
+// Endpoint công khai (khách làm bài cũng gửi): giới hạn kích thước và tần suất để không bị spam đầy CSDL.
+const MAX_BODY_BYTES = 64 * 1024;
+const LIMIT = { windowSeconds: 60, limit: 60 };
+
 export async function POST(request: NextRequest) {
   try {
-    const raw = await request.json().catch(() => null);
+    const declared = Number(request.headers.get('content-length') ?? 0);
+    if (declared > MAX_BODY_BYTES) return NextResponse.json({ ok: false }, { status: 413 });
+    if (!(await rateLimit(`trace:${clientKey(request)}`, LIMIT)))
+      return NextResponse.json({ ok: false }, { status: 429, headers: { 'Retry-After': '60' } });
+
+    const text = await request.text();
+    if (text.length > MAX_BODY_BYTES) return NextResponse.json({ ok: false }, { status: 413 });
+    let raw: unknown = null;
+    try { raw = JSON.parse(text); } catch { /* body không phải JSON */ }
     const parsed = BatchSchema.safeParse(raw);
     if (!parsed.success) return NextResponse.json({ ok: false }, { status: 400 });
 
-    const validEvents = parsed.data.events.filter((e) => !isExtensionNoise(e));
+    // category 'admin' chỉ do server ghi (recordTrace); không nhận từ trình duyệt.
+    const validEvents = parsed.data.events.filter((e) => e.category !== 'admin' && !isExtensionNoise(e));
     if (!validEvents.length) return NextResponse.json({ ok: true });
 
     const ua = request.headers.get('user-agent')?.slice(0, 300) ?? null;

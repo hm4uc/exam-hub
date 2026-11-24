@@ -27,9 +27,9 @@ interface Start {
 type SaveState = 'saved' | 'saving' | 'offline';
 
 const TYPE_NAME: Record<QType, string> = { mcq: 'Trắc nghiệm', tf: 'Đúng/Sai', short: 'Trả lời ngắn' };
-const LETTERS = 'ABCD';
+const LETTERS = 'ABCDEF';
 const isAnswered = (q: Q, v: string | undefined) =>
-  !!v && (q.type === 'tf' ? v.length === 4 && !v.includes('_') : v.trim() !== '');
+  !!v && (q.type === 'tf' ? v.padEnd(4, '_').slice(0, q.choices.length).indexOf('_') === -1 : v.trim() !== '');
 
 const draftKey = (id: string) => `eh:attempt:${id}`;
 function readDraft(id: string): { pending: Record<string, string>; leaves: number } | null {

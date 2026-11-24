@@ -17,9 +17,9 @@ export interface PreviewQuestion {
   solution_html: string | null;
 }
 
-const LETTERS = 'ABCD';
+const LETTERS = 'ABCDEF';
 const isAnswered = (q: PreviewQuestion, v: string | undefined) =>
-  !!v && (q.type === 'tf' ? v.length === 4 && !v.includes('_') : v.trim() !== '');
+  !!v && (q.type === 'tf' ? v.padEnd(4, '_').slice(0, q.choices.length).indexOf('_') === -1 : v.trim() !== '');
 
 export function ExamPreviewClient({
   examId,

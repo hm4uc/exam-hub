@@ -23,6 +23,8 @@ export interface ParsedQuestion {
 export interface ParseResult {
   stats: { omml: number; ole: number; images: number; shapes: number };
   errors: string[];
+  /** thông tin không chặn việc lưu (ví dụ: đã bỏ qua phần tự luận) */
+  notes: string[];
   questions: ParsedQuestion[];
 }
 

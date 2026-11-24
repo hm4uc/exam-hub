@@ -20,10 +20,10 @@ interface Item { q: ParsedQuestion; include: boolean; answer: string | string[] 
 const isAnswerError = (e: string) => /đáp án|gạch chân/i.test(e);
 const validAnswer = (q: ParsedQuestion, a: Item['answer']) =>
   q.type === 'mcq' ? typeof a === 'string' && q.options.some((o) => o.label === a)
-  : q.type === 'tf' ? typeof a === 'string' && !!normTF(a)
+  : q.type === 'tf' ? typeof a === 'string' && normTF(a)?.length === q.statements.length
   : Array.isArray(a) && a.length > 0 && a.every((x) => normNum(x) !== null);
 
-export function UploadClient() {
+export function UploadClient({ ownerId }: { ownerId: string }) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [parsed, setParsed] = useState<DocxParse | null>(null);
@@ -87,12 +87,12 @@ export function UploadClient() {
         for (const m of s.matchAll(/⟦img:([^⟧]+)⟧/g)) used.add(m[1]);
       const pathOf = new Map<string, string>();
       for (const im of parsed.images.filter((x) => x.displayable && used.has(x.rId))) {
-        const path = `${examKey}/${im.rId}.${im.ext}`;
+        const path = `${ownerId}/${examKey}/${im.rId}.${im.ext}`;
         const { error } = await supabase.storage.from(IMAGE_BUCKET).upload(path, new Blob([im.data as BlobPart]), { contentType: `image/${im.ext === 'jpg' ? 'jpeg' : im.ext}`, upsert: true });
         if (error) throw new Error('Chưa tải được ảnh trong đề lên. Hãy thử lại.');
         pathOf.set(im.rId, path);
       }
-      const sourcePath = `${examKey}/${file.name.replace(/[^\w.\-]+/g, '_')}`;
+      const sourcePath = `${ownerId}/${examKey}/${file.name.replace(/[^\w.\-]+/g, '_')}`;
       await supabase.storage.from('exam-files').upload(sourcePath, file, { upsert: true });
       const fix = (s: string) => s.replace(/⟦img:([^⟧]+)⟧/g, (m, id) => (pathOf.has(id) ? `⟦img:${pathOf.get(id)}⟧` : m));
       const questions: QuestionInput[] = keep.map(({ q, answer }, i) => ({
@@ -128,6 +128,7 @@ export function UploadClient() {
       {parsed && (
         <>
           {parsed.errors.map((e) => <Alert key={e}>{e}</Alert>)}
+          {parsed.notes.map((n) => <Alert key={n} tone="brand">{n}</Alert>)}
           <div className="grid gap-4 rounded-xl border border-line bg-surface p-4 sm:grid-cols-[1fr_auto] sm:items-start">
             <Field label="Tên đề" htmlFor="title" error={titleErr}>
               <Input
