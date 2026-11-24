@@ -128,6 +128,7 @@ export function UploadClient() {
       {parsed && (
         <>
           {parsed.errors.map((e) => <Alert key={e}>{e}</Alert>)}
+          {parsed.notes.map((n) => <Alert key={n} tone="brand">{n}</Alert>)}
           <div className="grid gap-4 rounded-xl border border-line bg-surface p-4 sm:grid-cols-[1fr_auto] sm:items-start">
             <Field label="Tên đề" htmlFor="title" error={titleErr}>
               <Input
