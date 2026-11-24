@@ -34,7 +34,7 @@ export async function createExam(input: { title: string; sourcePath: string | nu
     return { ok: false, error: 'Chưa lưu được câu hỏi. Hãy thử lại.' };
   }
 
-  // Tự động tạo sẵn 1 link làm bài nhanh (mở ngay, tự do không cần lớp, 45 phút, xem điểm + đáp án)
+  // Tự động tạo sẵn 1 link làm bài nhanh (mở ngay, tự do không cần lớp, 45 phút, chỉ xem điểm)
   const { data: quick } = await supabase
     .from('assignments')
     .insert({
@@ -48,7 +48,9 @@ export async function createExam(input: { title: string; sourcePath: string | nu
       shuffle_questions: true,
       shuffle_choices: true,
       access_password: null,
-      result_mode: 'score_answers',
+      // Link mở cho khách (có thể làm lại bằng cách xoá cookie): mặc định chỉ cho xem điểm, không lộ đáp án.
+      // Giáo viên bật "xem đáp án" ở trang bài giao khi cần.
+      result_mode: 'score',
       result_release: 'on_submit',
       restrict_to_class: false,
       is_quick_link: true,
