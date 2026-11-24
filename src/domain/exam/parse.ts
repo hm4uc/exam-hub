@@ -35,7 +35,9 @@ function paragraphLines(pxml: string, stats: Stats): Line[] {
     if (/<w:object/.test(chunk)) {
       stats.ole++;
       const rid = chunk.match(/<v:imagedata[^>]*r:id="([^"]+)"/);
-      push(rid ? `⟦img:${rid[1]}⟧` : '⟦MathType⟧', false);
+      // Đối tượng công thức MathType: docx.ts đọc mã TeX trong file nhúng, không được thì dùng ảnh xem trước.
+      const ole = /ProgID="Equation/.test(chunk) ? chunk.match(/<o:OLEObject[^>]*r:id="([^"]+)"/) : null;
+      push(ole ? `⟦ole:${ole[1]}|${rid?.[1] ?? ''}⟧` : rid ? `⟦img:${rid[1]}⟧` : '⟦MathType⟧', false);
     }
     if (/<w:drawing/.test(chunk) || /<w:pict/.test(chunk) && !/<w:object/.test(chunk)) {
       const blip = chunk.match(/<a:blip[^>]*r:embed="([^"]+)"/) || chunk.match(/<v:imagedata[^>]*r:id="([^"]+)"/);

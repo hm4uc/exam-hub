@@ -1,5 +1,6 @@
 // Mở file .docx (ArrayBuffer) → phân giải + danh sách ảnh nhúng. Chạy được trong Web Worker và Node.
 import JSZip from 'jszip';
+import { resolveMathType } from './ole';
 import { parseDocumentXml } from './parse';
 import type { ParseResult } from './types';
 
@@ -27,6 +28,7 @@ export async function parseDocx(buf: ArrayBuffer | Uint8Array): Promise<DocxPars
   if (!docFile) throw new Error('Không đọc được nội dung file Word (thiếu word/document.xml).');
   const xml = await docFile.async('string');
   const res = parseDocumentXml(xml);
+  await resolveMathType(res, zip);
 
   // Ảnh được tham chiếu trong đề
   const used = new Set<string>();
