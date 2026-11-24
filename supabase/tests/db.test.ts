@@ -11,6 +11,7 @@ create table auth.users (id uuid primary key default gen_random_uuid(), raw_user
 create table auth.sessions (id uuid primary key default gen_random_uuid(), user_id uuid);
 create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('test.uid', true), '')::uuid $$;
 create schema storage;
+create function storage.foldername(name text) returns text[] language sql immutable as $$ select (string_to_array(name, '/'))[1:greatest(array_length(string_to_array(name, '/'), 1) - 1, 0)] $$;
 create table storage.buckets (id text primary key, name text, public boolean);
 create table storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text, name text);
 alter table storage.objects enable row level security;
@@ -22,10 +23,10 @@ let db: PGlite;
 const as = async (uid: string | null) => db.exec(`select set_config('test.uid', '${uid ?? ''}', false)`);
 const one = async <T = any>(sql: string, params: unknown[] = []) => (await db.query<T>(sql, params)).rows[0];
 
-async function mkUser(username: string, full_name: string, class_id?: string) {
+async function mkUser(username: string, full_name: string, class_id?: string, owner_id?: string, teacher_code?: string) {
   const r = await one<{ id: string }>(
     `insert into auth.users (raw_user_meta_data) values ($1) returning id`,
-    [JSON.stringify({ username, full_name, class_id: class_id ?? '' })],
+    [JSON.stringify({ username, full_name, class_id: class_id ?? '', owner_id: owner_id ?? '', teacher_code: teacher_code ?? '' })],
   );
   return r.id;
 }
@@ -41,7 +42,9 @@ beforeAll(async () => {
   }
   // Supabase cấp sẵn quyền bảng cho anon/authenticated (RLS mới là lớp chặn).
   await db.exec(`grant usage on schema public to anon, authenticated;
-                 grant all on all tables in schema public to anon, authenticated;`);
+                 grant all on all tables in schema public to anon, authenticated;
+                 grant usage on schema storage to anon, authenticated;
+                 grant all on all tables in schema storage to anon, authenticated;`);
 });
 
 afterEach(async () => { await db.exec('reset role'); });
@@ -51,12 +54,13 @@ describe('schema + RPC', () => {
   const q: Record<string, string> = {};
 
   it('tạo dữ liệu', async () => {
-    teacher = await mkUser('co.giao', 'Cô Giáo');
+    teacher = await mkUser('co.giao', 'Cô Giáo', undefined, undefined, 'cogiao');
     await db.query(`update public.profiles set role = 'teacher' where id = $1`, [teacher]);
+    await as(teacher); // giá trị mặc định owner_id = auth.uid()
     classA = (await one(`insert into public.classes (name, school_year) values ('10A1','2026-2027') returning id`)).id;
     classB = (await one(`insert into public.classes (name, school_year) values ('10A2','2026-2027') returning id`)).id;
-    s1 = await mkUser('An.Nguyen', 'Nguyễn Văn An');           // chưa có lớp
-    s2 = await mkUser('binh', 'Trần Bình', classB);
+    s1 = await mkUser('An.Nguyen', 'Nguyễn Văn An', undefined, teacher);           // chưa có lớp
+    s2 = await mkUser('binh', 'Trần Bình', classB, teacher);
     expect((await one(`select username from public.profiles where id=$1`, [s1])).username).toBe('an.nguyen');
 
     exam = (await one(`insert into public.exams (title, status) values ('Đề thử','published') returning id`)).id;
@@ -82,8 +86,8 @@ describe('schema + RPC', () => {
   });
 
   it('giao bài + bắt đầu làm (xếp tạm vào lớp)', async () => {
-    code = (await one(`insert into public.assignments (exam_id, class_id, title, opens_at, closes_at, duration_minutes, access_password, restrict_to_class)
-             values ($1,$2,'Kiểm tra 15 phút', now() - interval '1 minute', now() + interval '1 day', 15, 'abc', true) returning code`, [exam, classA])).code;
+    code = (await one(`insert into public.assignments (exam_id, class_id, title, opens_at, closes_at, duration_minutes, access_password, restrict_to_class, owner_id)
+             values ($1,$2,'Kiểm tra 15 phút', now() - interval '1 minute', now() + interval '1 day', 15, 'abc', true, $3) returning code`, [exam, classA, teacher])).code;
     expect(code).toMatch(/^[a-z2-9]{6}$/);
 
     await db.exec('set role authenticated');
@@ -190,8 +194,8 @@ describe('schema + RPC', () => {
   });
 
   it('link tự do không lớp, không giờ đóng: khách không đăng nhập làm bài + tên mặc định + bảo mật guest_key', async () => {
-    const qcode = (await one(`insert into public.assignments (exam_id, class_id, title, opens_at, closes_at, duration_minutes, result_mode, is_quick_link)
-      values ($1, null, 'Đề mở tự do', now() - interval '1 minute', null, 45, 'score_answers', true) returning code`, [exam])).code;
+    const qcode = (await one(`insert into public.assignments (exam_id, class_id, title, opens_at, closes_at, duration_minutes, result_mode, is_quick_link, owner_id)
+      values ($1, null, 'Đề mở tự do', now() - interval '1 minute', null, 45, 'score_answers', true, $2) returning code`, [exam, teacher])).code;
 
     // Khách 1 không nhập tên → tự gán "Học sinh #1"
     await db.exec('set role anon');
@@ -227,8 +231,8 @@ describe('schema + RPC', () => {
     await db.exec('reset role');
 
     // Bài gắn lớp nhưng restrict_to_class = false (mặc định): học sinh lớp khác & khách vẫn làm được
-    const openClassCode = (await one(`insert into public.assignments (exam_id, class_id, title, opens_at, closes_at, duration_minutes)
-      values ($1, $2, 'Đề lớp 10A1 mở rộng', now() - interval '1 minute', null, 30) returning code`, [exam, classA])).code;
+    const openClassCode = (await one(`insert into public.assignments (exam_id, class_id, title, opens_at, closes_at, duration_minutes, owner_id)
+      values ($1, $2, 'Đề lớp 10A1 mở rộng', now() - interval '1 minute', null, 30, $3) returning code`, [exam, classA, teacher])).code;
     await db.exec('set role authenticated');
     await as(s2); // thuộc classB
     const stS2 = (await one(`select public.start_attempt($1) j`, [openClassCode])).j;
@@ -304,6 +308,101 @@ describe('giới hạn tần suất', () => {
     await db.exec('set role authenticated');
     await as(null);
     expect((await db.query(`select * from public.rate_limits`)).rows).toHaveLength(0);
+    await db.exec('reset role');
+  });
+});
+
+describe('đa giáo viên: cô lập dữ liệu giữa hai giáo viên', () => {
+  let tA: string, tB: string, adm: string, sA: string, sB: string;
+  let examA: string, examB: string, classA: string, classB: string, asgA: string, asgB: string;
+
+  it('dựng dữ liệu cho hai giáo viên', async () => {
+    tA = await mkUser('gv.a', 'Giáo viên A', undefined, undefined, 'gva');
+    tB = await mkUser('gv.b', 'Giáo viên B', undefined, undefined, 'gvb');
+    adm = await mkUser('admin.mt', 'Admin');
+    await db.query(`update public.profiles set role = 'teacher' where id = any($1)`, [[tA, tB]]);
+    await db.query(`update public.profiles set role = 'admin' where id = $1`, [adm]);
+    sA = await mkUser('gva.an', 'Học sinh A', undefined, tA);
+    sB = await mkUser('gvb.binh', 'Học sinh B', undefined, tB);
+    for (const [owner, tag] of [[tA, 'A'], [tB, 'B']] as const) {
+      const c = (await one(`insert into public.classes (name, owner_id) values ($1, $2) returning id`, [`Lớp ${tag}`, owner])).id;
+      const e = (await one(`insert into public.exams (title, owner_id, status) values ($1, $2, 'published') returning id`, [`Đề ${tag}`, owner])).id;
+      await db.query(`insert into public.questions (exam_id, position, part, type, stem, stem_html, choices, answer)
+                      values ($1, 1, 'I', 'mcq', 's', 's', $2, '"A"')`,
+        [e, JSON.stringify(['A', 'B', 'C', 'D'].map((l) => ({ label: l, text: l, html: l })))]);
+      const a = (await one(`insert into public.assignments (exam_id, class_id, title, opens_at, duration_minutes, owner_id)
+                            values ($1, $2, $3, now() - interval '1 minute', 30, $4) returning id`, [e, c, `Bài ${tag}`, owner])).id;
+      if (tag === 'A') { classA = c; examA = e; asgA = a; } else { classB = c; examB = e; asgB = a; }
+    }
+    expect([classA, classB, examA, examB, asgA, asgB].every(Boolean)).toBe(true);
+  });
+
+  it('giáo viên B không thấy, không sửa, không xoá dữ liệu của A', async () => {
+    await db.exec('set role authenticated');
+    await as(tB);
+    for (const [table, mine] of [['exams', examB], ['classes', classB], ['assignments', asgB], ['questions', examB]] as const) {
+      const rows = (await db.query<{ id: string }>(`select * from public.${table}`)).rows;
+      expect(rows, table).toHaveLength(1);
+    }
+    expect((await db.query(`select * from public.profiles where role = 'student'`)).rows.map((r: any) => r.id)).toEqual([sB]);
+    expect((await db.query(`update public.exams set title = 'hack' where id = $1 returning id`, [examA])).rows).toHaveLength(0);
+    expect((await db.query(`delete from public.exams where id = $1 returning id`, [examA])).rows).toHaveLength(0);
+    expect((await db.query(`update public.profiles set full_name = 'hack' where id = $1 returning id`, [sA])).rows).toHaveLength(0);
+    await db.exec('reset role');
+    expect((await one(`select title from public.exams where id = $1`, [examA])).title).toBe('Đề A');
+  });
+
+  it('không tạo được dữ liệu mạo danh chủ sở hữu hoặc dùng đề / lớp của người khác', async () => {
+    await db.exec('set role authenticated');
+    await as(tB);
+    await expect(db.query(`insert into public.exams (title, owner_id) values ('x', $1)`, [tA])).rejects.toThrow(/row-level security/);
+    // bài giao của B nhưng dùng đề của A, hoặc lớp của A
+    await expect(db.query(`insert into public.assignments (exam_id, class_id, title, opens_at, duration_minutes)
+                           values ($1, $2, 'x', now(), 10)`, [examA, classB])).rejects.toThrow(/OWNER_MISMATCH/);
+    await expect(db.query(`insert into public.assignments (exam_id, class_id, title, opens_at, duration_minutes)
+                           values ($1, $2, 'x', now(), 10)`, [examB, classA])).rejects.toThrow(/OWNER_MISMATCH/);
+    // chuyển học sinh của B vào lớp của A
+    await expect(db.query(`update public.profiles set class_id = $1 where id = $2`, [classA, sB])).rejects.toThrow(/OWNER_MISMATCH/);
+    await db.exec('reset role');
+  });
+
+  it('revoke_sessions và regrade_exam chỉ dùng cho dữ liệu của mình; admin dùng được cho tất cả', async () => {
+    await db.exec('set role authenticated');
+    await as(tB);
+    await expect(db.query(`select public.revoke_sessions($1)`, [sA])).rejects.toThrow(/FORBIDDEN/);
+    await expect(db.query(`select public.regrade_exam($1)`, [examA])).rejects.toThrow(/FORBIDDEN/);
+    await db.query(`select public.revoke_sessions($1)`, [sB]);
+    await db.query(`select public.regrade_exam($1)`, [examB]);
+    await as(adm);
+    await db.query(`select public.revoke_sessions($1)`, [sA]);
+    expect((await db.query(`select * from public.exams`)).rows.length).toBeGreaterThanOrEqual(2);
+    await db.exec('reset role');
+  });
+
+  it('học sinh của giáo viên khác: bài giới hạn lớp bị chặn, bài mở không bị kéo vào lớp', async () => {
+    const codeB = (await one(`select code from public.assignments where id = $1`, [asgB])).code;
+    await db.query(`update public.assignments set restrict_to_class = true where id = $1`, [asgB]);
+    await db.exec('set role authenticated');
+    await as(sA);
+    await expect(db.query(`select public.start_attempt($1)`, [codeB])).rejects.toThrow(/WRONG_CLASS/);
+    await db.exec('reset role');
+    await db.query(`update public.assignments set restrict_to_class = false where id = $1`, [asgB]);
+    await db.exec('set role authenticated');
+    await as(sA);
+    await db.query(`select public.start_attempt($1)`, [codeB]);
+    await db.exec('reset role');
+    // học sinh A không bị xếp vào lớp của B
+    expect((await one(`select class_id from public.profiles where id = $1`, [sA])).class_id).toBeNull();
+  });
+
+  it('Storage: giáo viên chỉ ghi vào thư mục mang id của mình', async () => {
+    await db.exec('set role authenticated');
+    await as(tB);
+    await db.query(`insert into storage.objects (bucket_id, name) values ('question-images', $1)`, [`${tB}/exam1/a.png`]);
+    await expect(db.query(`insert into storage.objects (bucket_id, name) values ('question-images', $1)`, [`${tA}/exam1/a.png`]))
+      .rejects.toThrow(/row-level security/);
+    await expect(db.query(`insert into storage.objects (bucket_id, name) values ('question-images', 'cu/khong-so-huu.png')`))
+      .rejects.toThrow(/row-level security/);
     await db.exec('reset role');
   });
 });
