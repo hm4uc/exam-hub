@@ -14,9 +14,9 @@ let ok = 0, fail = 0;
 const check = (name, cond, extra = '') => { if (cond) ok++; else fail++; console.log(`${cond ? '✓' : '✗'} ${name}${extra ? ` (${extra})` : ''}`); };
 const must = ({ data, error }, what) => { if (error) throw new Error(`${what}: ${error.message}`); return data; };
 
-async function user(role) {
-  const username = `smoke_${role}_${tag}`;
-  const u = must(await admin.auth.admin.createUser({ email: `${username}@hs.local`, password: pass, email_confirm: true, user_metadata: { username, full_name: `Thử ${role}` } }), 'createUser').user;
+async function user(role, extra = {}, label = role) {
+  const username = `smoke_${label}_${tag}`;
+  const u = must(await admin.auth.admin.createUser({ email: `${username}@hs.local`, password: pass, email_confirm: true, user_metadata: { username, full_name: `Thử ${label}`, ...extra } }), 'createUser').user;
   if (role === 'teacher' || role === 'admin') must(await admin.from('profiles').update({ role }).eq('id', u.id), 'set role');
   const c = createClient(URL, ANON, opts);
   must(await c.auth.signInWithPassword({ email: `${username}@hs.local`, password: pass }), 'signIn');
@@ -26,8 +26,8 @@ async function user(role) {
 const ids = [];
 let examId;
 try {
-  const t = await user('teacher'); ids.push(t.id);
-  const s = await user('student'); ids.push(s.id);
+  const t = await user('teacher', { teacher_code: `smk${tag}` }); ids.push(t.id);
+  const s = await user('student', { owner_id: t.id }); ids.push(s.id);
   check('profile tự tạo bởi trigger, mặc định là học sinh', must(await s.c.from('profiles').select('role').single(), 'profile').role === 'student');
   check('is_teacher', must(await t.c.rpc('is_teacher'), 'is_teacher') === true);
 
@@ -87,9 +87,9 @@ try {
 
   const buckets = must(await admin.storage.listBuckets(), 'buckets').map((b) => b.id);
   check('bucket lưu ảnh và file đề', buckets.includes('exam-files') && buckets.includes('question-images'), buckets.join(','));
-  const up = await t.c.storage.from('question-images').upload(`smoke/${tag}.txt`, new Blob(['x']), { contentType: 'text/plain' });
+  const up = await t.c.storage.from('question-images').upload(`${t.id}/smoke-${tag}.txt`, new Blob(['x']), { contentType: 'text/plain' });
   check('giáo viên tải được ảnh lên', !up.error, up.error?.message);
-  if (!up.error) await admin.storage.from('question-images').remove([`smoke/${tag}.txt`]);
+  if (!up.error) await admin.storage.from('question-images').remove([`${t.id}/smoke-${tag}.txt`]);
   const up2 = await s.c.storage.from('question-images').upload(`smoke/${tag}-s.txt`, new Blob(['x']));
   check('học sinh không tải được file lên', !!up2.error);
 
@@ -123,7 +123,18 @@ try {
   check('bài giới hạn lớp yêu cầu khách đăng nhập', (await anonClient.rpc('start_attempt', { p_code: lockedAsg.code, p_guest_key: gKey2 })).error?.message === 'LOGIN_REQUIRED');
 
   // Luồng mới: vai trò admin & RLS bảng trace_events
+  // Đa giáo viên: giáo viên thứ hai không thấy / không dùng được dữ liệu của giáo viên thứ nhất
+  const t2 = await user('teacher', { teacher_code: `smj${tag}` }, 'teacher2'); ids.push(t2.id);
+  check('giáo viên khác không thấy đề', ((await t2.c.from('exams').select('id').eq('id', exam.id)).data ?? []).length === 0);
+  check('giáo viên khác không thấy học sinh', ((await t2.c.from('profiles').select('id').eq('id', s.id)).data ?? []).length === 0);
+  check('giáo viên khác không sửa được đề', ((await t2.c.from('exams').update({ title: 'hack' }).eq('id', exam.id).select('id')).data ?? []).length === 0);
+  check('không tạo được bài giao bằng đề của người khác', (await t2.c.from('assignments').insert({ exam_id: exam.id, title: 'x', opens_at: new Date().toISOString(), duration_minutes: 10 })).error != null);
+  check('không tải được ảnh vào thư mục của người khác', (await t2.c.storage.from('question-images').upload(`${t.id}/smoke-${tag}-x.txt`, new Blob(['x']))).error != null);
+  check('giáo viên khác không đăng xuất được học sinh của người khác', (await t2.c.rpc('revoke_sessions', { p_user: s.id })).error != null);
+  check('rate_limit_hit không gọi được từ trình duyệt', (await s.c.rpc('rate_limit_hit', { p_key: 'x', p_window_seconds: 60, p_limit: 1 })).error != null);
+
   const adm = await user('admin'); ids.push(adm.id);
+  check('admin thấy đề của mọi giáo viên', ((await adm.c.from('exams').select('id').eq('id', exam.id)).data ?? []).length === 1);
   const { data: traceRow } = await admin.from('trace_events').insert({ level: 'warn', category: 'exam', event: 'smoke_test', message: `smoke ${tag}` }).select('id').single();
   check('giáo viên không đọc được trace_events', ((await t.c.from('trace_events').select('id')).data ?? []).length === 0);
   check('admin đọc được trace_events', ((await adm.c.from('trace_events').select('id').eq('id', traceRow.id)).data ?? []).length === 1);
