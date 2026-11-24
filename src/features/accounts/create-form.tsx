@@ -6,7 +6,7 @@ import { hasErrors, validateFullName, validatePassword, validateUsername, type F
 import { createAccount, type Res } from './actions';
 
 /** Thêm tài khoản (học sinh hoặc giáo viên). Để trống mật khẩu → tạo mật khẩu tạm, bắt đổi khi đăng nhập. */
-export function CreateAccountForm({ classes, defaultClass }: { classes: { id: string; name: string }[]; defaultClass?: string }) {
+export function CreateAccountForm({ classes, defaultClass, isAdmin = false, teacherCode = null }: { classes: { id: string; name: string }[]; defaultClass?: string; isAdmin?: boolean; teacherCode?: string | null }) {
   const ref = useRef<HTMLFormElement>(null);
   const [role, setRole] = useState<'student' | 'teacher'>('student');
   const [clientErrs, setClientErrs] = useState<FieldErrors>({});
@@ -79,7 +79,7 @@ export function CreateAccountForm({ classes, defaultClass }: { classes: { id: st
             onBlur={(e) => onBlur('full_name', e.target.value)}
           />
         </Field>
-        <Field label="Tên đăng nhập" htmlFor="new-username" hint="Chữ không dấu, số, dấu chấm, gạch dưới." error={userErr}>
+        <Field label="Tên đăng nhập" htmlFor="new-username" hint={role === 'student' && teacherCode ? `Học sinh đăng nhập bằng “${teacherCode}.tên”. Chữ không dấu, số, dấu chấm, gạch dưới.` : 'Chữ không dấu, số, dấu chấm, gạch dưới.'} error={userErr}>
           <Input
             id="new-username"
             name="username"
@@ -104,12 +104,19 @@ export function CreateAccountForm({ classes, defaultClass }: { classes: { id: st
             onBlur={(e) => onBlur('password', e.target.value)}
           />
         </Field>
-        <Field label="Vai trò" htmlFor="new-role">
-          <Select id="new-role" name="role" value={role} onChange={(e) => setRole(e.target.value as 'student' | 'teacher')}>
-            <option value="student">Học sinh</option>
-            <option value="teacher">Giáo viên (toàn quyền quản lý)</option>
-          </Select>
-        </Field>
+        {isAdmin ? (
+          <Field label="Vai trò" htmlFor="new-role">
+            <Select id="new-role" name="role" value={role} onChange={(e) => setRole(e.target.value as 'student' | 'teacher')}>
+              <option value="student">Học sinh</option>
+              <option value="teacher">Giáo viên</option>
+            </Select>
+          </Field>
+        ) : <input type="hidden" name="role" value="student" />}
+        {isAdmin && role === 'teacher' && (
+          <Field label="Mã giáo viên" htmlFor="new-teacher-code" hint="2–12 ký tự chữ không dấu hoặc số. Học sinh của giáo viên này đăng nhập bằng “mã.tên”." error={serverFields?.teacher_code}>
+            <Input id="new-teacher-code" name="teacher_code" required maxLength={12} autoCapitalize="none" spellCheck={false} autoComplete="off" invalid={!!serverFields?.teacher_code} />
+          </Field>
+        )}
         {role === 'student' && (
           <Field label="Lớp" htmlFor="new-class">
             <Select id="new-class" name="class_id" defaultValue={defaultClass ?? ''}>

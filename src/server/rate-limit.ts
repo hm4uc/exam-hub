@@ -25,3 +25,9 @@ export async function rateLimit(key: string, opts: { windowSeconds: number; limi
     return true;
   }
 }
+
+/** Như clientKey nhưng dùng trong Server Action (chỉ có headers()). */
+export function clientKeyFromHeaders(h: Headers): string {
+  const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown';
+  return createHash('sha256').update(ip).digest('hex').slice(0, 24);
+}

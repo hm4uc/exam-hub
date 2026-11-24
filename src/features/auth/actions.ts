@@ -1,11 +1,15 @@
 'use server';
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
+import { assignmentCodeFromPath, loginCandidates, maxLocalLength, withTeacherPrefix } from '@/domain/tenant';
 import { zodFieldErrors } from '@/lib/validation';
 import { homePathFor, type UserRole } from '@/server/auth';
+import { clientKeyFromHeaders, rateLimit } from '@/server/rate-limit';
 import { supabaseAdmin } from '@/server/supabase/admin';
 import { usernameToEmail } from '@/server/supabase/env';
 import { supabaseServer } from '@/server/supabase/server';
+import { assignmentOwner } from '@/server/tenant';
 import { recordTrace } from '@/server/trace';
 
 export type FormState = { error?: string; fieldErrors?: Record<string, string>; fields?: Record<string, string> } | undefined;
@@ -42,8 +46,24 @@ export async function signIn(_: FormState, form: FormData): Promise<FormState> {
   if (Object.keys(fieldErrors).length) {
     return { error: 'Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.', fieldErrors, fields };
   }
+  // Giới hạn thử đăng nhập: theo IP và theo tên đăng nhập (chống dò mật khẩu).
+  const ipKey = clientKeyFromHeaders(await headers());
+  const [ipOk, userOk] = await Promise.all([
+    rateLimit(`login:ip:${ipKey}`, { windowSeconds: 60, limit: 30 }),
+    rateLimit(`login:user:${username}`, { windowSeconds: 300, limit: 10 }),
+  ]);
+  if (!ipOk || !userOk) {
+    return { error: 'Bạn đã thử đăng nhập quá nhiều lần. Hãy đợi vài phút rồi thử lại.', fields };
+  }
   const supabase = await supabaseServer();
-  const { error } = await supabase.auth.signInWithPassword({ email: usernameToEmail(username), password });
+  // Vào từ link bài giao: học sinh chỉ cần gõ tên ngắn, hệ thống thử thêm tiền tố mã giáo viên của bài giao đó.
+  const linkCode = assignmentCodeFromPath(next);
+  const linkTeacherCode = linkCode ? (await assignmentOwner(linkCode))?.teacher_code ?? null : null;
+  let error: { message: string } | null = null;
+  for (const candidate of loginCandidates(username, linkTeacherCode)) {
+    ({ error } = await supabase.auth.signInWithPassword({ email: usernameToEmail(candidate), password }));
+    if (!error) break;
+  }
   if (error) {
     const locked = /banned/i.test(error.message);
     void recordTrace({
@@ -101,47 +121,54 @@ export async function register(_: FormState, form: FormData): Promise<FormState>
   const next = safeNext(form.get('next'));
   const admin = supabaseAdmin();
 
-  const { data: taken } = await admin.from('profiles').select('id').ilike('username', username).maybeSingle();
+  // Đăng ký chỉ qua link Bài giao: link cho biết giáo viên (owner) và lớp; tên đăng nhập mang tiền tố mã giáo viên.
+  const code = assignmentCodeFromPath(next);
+  const a = code ? await assignmentOwner(code) : null;
+  if (!a) {
+    return { error: 'Hãy mở link bài kiểm tra mà thầy/cô gửi rồi đăng ký từ đó, để tài khoản được xếp đúng lớp.', fields };
+  }
+  const teacherCode = a.teacher_code;
+  const class_id = a.class_id ?? '';
+  const local = username;
+  if (local.length > maxLocalLength(teacherCode)) {
+    const msg = `Tên đăng nhập tối đa ${maxLocalLength(teacherCode)} ký tự.`;
+    return { error: msg, fieldErrors: { username: msg }, fields };
+  }
+  const fullUsername = withTeacherPrefix(teacherCode, local);
+
+  const { data: taken } = await admin.from('profiles').select('id').ilike('username', fullUsername).maybeSingle();
   if (taken) {
     return {
-      error: `Tên đăng nhập "${username}" đã có người dùng. Hãy chọn tên khác.`,
-      fieldErrors: { username: `Tên "${username}" đã có người dùng.` },
+      error: `Tên đăng nhập "${local}" đã có người dùng. Hãy chọn tên khác.`,
+      fieldErrors: { username: `Tên "${local}" đã có người dùng.` },
       fields,
     };
   }
 
-  // Đăng ký qua link Bài giao → xếp tạm vào lớp của Bài giao đó (nếu bài giao có gắn lớp).
-  let class_id = '';
-  const code = next.match(/^\/([a-z2-9]{6})(?:\/|$)/i)?.[1]?.toLowerCase();
-  if (code) {
-    const { data: a } = await admin.from('assignments').select('class_id').eq('code', code).maybeSingle();
-    class_id = a?.class_id ?? '';
-  }
-
   const { data: created, error } = await admin.auth.admin.createUser({
-    email: usernameToEmail(username),
+    email: usernameToEmail(fullUsername),
     password,
     email_confirm: true,
-    user_metadata: { username, full_name, class_id },
+    user_metadata: { username: fullUsername, full_name, class_id, owner_id: a.owner_id },
   });
   if (error) {
-    void recordTrace({ level: 'warn', category: 'auth', event: 'auth_register_failed', username, path: '/dang-ky', message: error.message });
+    void recordTrace({ level: 'warn', category: 'auth', event: 'auth_register_failed', username: fullUsername, path: '/dang-ky', message: error.message });
     const dup = /already/i.test(error.message);
     return {
-      error: dup ? `Tên đăng nhập "${username}" đã có người dùng.` : 'Chưa tạo được tài khoản. Hãy thử lại.',
-      ...(dup ? { fieldErrors: { username: `Tên "${username}" đã có người dùng.` } } : {}),
+      error: dup ? `Tên đăng nhập "${local}" đã có người dùng.` : 'Chưa tạo được tài khoản. Hãy thử lại.',
+      ...(dup ? { fieldErrors: { username: `Tên "${local}" đã có người dùng.` } } : {}),
       fields,
     };
   }
 
   const supabase = await supabaseServer();
-  await supabase.auth.signInWithPassword({ email: usernameToEmail(username), password });
+  await supabase.auth.signInWithPassword({ email: usernameToEmail(fullUsername), password });
   void recordTrace({
     level: 'info',
     category: 'auth',
     event: 'auth_register_ok',
     user_id: created.user?.id ?? null,
-    username,
+    username: fullUsername,
     assignment_code: code ?? null,
     path: '/dang-ky',
     meta: { full_name, class_id: class_id || null },

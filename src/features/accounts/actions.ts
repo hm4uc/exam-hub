@@ -4,8 +4,9 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
+import { TEACHER_CODE_RE, maxLocalLength, withTeacherPrefix } from '@/domain/tenant';
 import { zodFieldErrors } from '@/lib/validation';
-import { requireTeacher } from '@/server/auth';
+import { requireTeacher, type Me } from '@/server/auth';
 import { supabaseAdmin } from '@/server/supabase/admin';
 import { usernameToEmail } from '@/server/supabase/env';
 import { supabaseServer } from '@/server/supabase/server';
@@ -32,6 +33,20 @@ const refresh = (id?: string) => {
   revalidatePath('/gv/lop');
 };
 
+/** Tài khoản đích mà người dùng hiện tại được quản lý: admin → bất kỳ; giáo viên → chỉ học sinh của mình. */
+async function loadTarget(me: Me, id: string) {
+  const { data } = await supabaseAdmin().from('profiles').select('id, username, role, owner_id, class_id').eq('id', id).maybeSingle();
+  if (!data) return null;
+  if (me.role === 'admin') return data;
+  return data.role === 'student' && data.owner_id === me.id ? data : null;
+}
+
+async function teacherCodeOf(ownerId: string | null) {
+  if (!ownerId) return null;
+  const { data } = await supabaseAdmin().from('profiles').select('teacher_code').eq('id', ownerId).maybeSingle();
+  return data?.teacher_code ?? null;
+}
+
 async function usernameTaken(username: string, exceptId?: string) {
   const { data } = await supabaseAdmin().from('profiles').select('id').ilike('username', username).maybeSingle();
   return !!data && data.id !== exceptId;
@@ -39,26 +54,49 @@ async function usernameTaken(username: string, exceptId?: string) {
 
 // ---------------------------------------------------------------- thêm
 
+const TeacherCode = z.string().trim().toLowerCase().regex(TEACHER_CODE_RE, 'Mã giáo viên gồm 2–12 ký tự chữ không dấu hoặc số.');
 const CreateSchema = z.object({
   full_name: FullName, username: Username, role: Role, class_id: ClassId,
   password: z.union([z.literal(''), Password]),
 });
 
 export async function createAccount(_: unknown, form: FormData): Promise<Res> {
-  await requireTeacher();
+  const me = await requireTeacher();
   const parsed = CreateSchema.safeParse(Object.fromEntries(['full_name', 'username', 'role', 'class_id', 'password'].map((k) => [k, String(form.get(k) ?? '')])));
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message, fieldErrors: zodFieldErrors(parsed.error) };
-  const { full_name, username, role, class_id } = parsed.data;
+  const { full_name, role, class_id } = parsed.data;
+  if (role === 'teacher' && me.role !== 'admin') return { ok: false, error: 'Chỉ quản trị viên mới tạo được tài khoản giáo viên.', fieldErrors: { role: 'Chỉ quản trị viên tạo được giáo viên.' } };
+  let teacherCode = '';
+  if (role === 'teacher') {
+    const tc = TeacherCode.safeParse(String(form.get('teacher_code') ?? ''));
+    if (!tc.success) return { ok: false, error: tc.error.issues[0].message, fieldErrors: { teacher_code: tc.error.issues[0].message } };
+    teacherCode = tc.data;
+  }
+  // Học sinh của giáo viên có mã "gva" đăng nhập bằng "gva.<tên>".
+  const username = role === 'student' ? withTeacherPrefix(me.teacher_code, parsed.data.username) : parsed.data.username;
+  if (role === 'student' && parsed.data.username.length > maxLocalLength(me.teacher_code)) {
+    const msg = `Tên đăng nhập tối đa ${maxLocalLength(me.teacher_code)} ký tự.`;
+    return { ok: false, error: msg, fieldErrors: { username: msg } };
+  }
   if (await usernameTaken(username)) {
     const msg = `Tên đăng nhập "${username}" đã có người dùng.`;
     return { ok: false, error: msg, fieldErrors: { username: msg } };
+  }
+  if (teacherCode) {
+    const { data: dupCode } = await supabaseAdmin().from('profiles').select('id').eq('teacher_code', teacherCode).maybeSingle();
+    if (dupCode) return { ok: false, error: 'Mã giáo viên này đã được dùng.', fieldErrors: { teacher_code: 'Mã này đã được dùng.' } };
   }
   const generated = !parsed.data.password;
   const password = parsed.data.password || tempPassword();
   const admin = supabaseAdmin();
   const { data, error } = await admin.auth.admin.createUser({
     email: usernameToEmail(username), password, email_confirm: true,
-    user_metadata: { username, full_name, class_id: role === 'student' ? class_id ?? '' : '' },
+    user_metadata: {
+      username, full_name,
+      class_id: role === 'student' ? class_id ?? '' : '',
+      owner_id: role === 'student' ? me.id : '',
+      teacher_code: teacherCode,
+    },
   });
   if (error || !data.user) return { ok: false, error: 'Chưa tạo được tài khoản.' };
   // Trigger luôn tạo vai trò học sinh; nâng quyền / bắt đổi mật khẩu ở đây.
@@ -76,14 +114,15 @@ export async function updateAccount(id: string, _: unknown, form: FormData): Pro
   if (!uuid.safeParse(id).success) return { ok: false, error: 'Tài khoản không hợp lệ.' };
   const parsed = UpdateSchema.safeParse(Object.fromEntries(['full_name', 'username', 'role', 'class_id'].map((k) => [k, String(form.get(k) ?? '')])));
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message, fieldErrors: zodFieldErrors(parsed.error) };
-  const { full_name, username, role, class_id } = parsed.data;
+  const { full_name, username: parsedUsername, role, class_id } = parsed.data;
   if (id === me.id && role !== 'teacher') return { ok: false, error: 'Bạn không thể tự bỏ quyền giáo viên của mình.', fieldErrors: { role: 'Không thể tự bỏ quyền giáo viên.' } };
 
   const admin = supabaseAdmin();
-  const { data: cur } = await admin.from('profiles').select('username, role').eq('id', id).maybeSingle();
+  const cur = await loadTarget(me, id);
   if (!cur) return { ok: false, error: 'Không tìm thấy tài khoản.' };
-  if (cur.role === 'admin' && me.role !== 'admin') return { ok: false, error: 'Không thể sửa tài khoản quản trị.' };
-  const nextRole = cur.role === 'admin' ? 'admin' : role;
+  // Chỉ quản trị viên được đổi vai trò; giáo viên chỉ sửa học sinh của mình.
+  const nextRole = cur.role === 'admin' ? 'admin' : me.role === 'admin' ? role : 'student';
+  const username = nextRole === 'student' ? withTeacherPrefix(await teacherCodeOf(cur.owner_id), parsedUsername) : parsedUsername;
   if (username !== cur.username) {
     if (await usernameTaken(username, id)) {
       const msg = `Tên đăng nhập "${username}" đã có người dùng.`;
@@ -144,6 +183,7 @@ export async function setPassword(id: string, password: string, mustChange: bool
       return { ok: false, error: msg, fieldErrors: { password: msg } };
     }
   }
+  if (!(await loadTarget(me, id))) return { ok: false, error: 'Không tìm thấy tài khoản.' };
   const pw = password || tempPassword();
   const admin = supabaseAdmin();
   const { error } = await admin.auth.admin.updateUserById(id, { password: pw });
@@ -170,8 +210,9 @@ export async function setLocked(id: string, locked: boolean): Promise<Res> {
   if (!uuid.safeParse(id).success) return { ok: false, error: 'Tài khoản không hợp lệ.' };
   if (id === me.id) return { ok: false, error: 'Bạn không thể tự khoá tài khoản của mình.' };
   const admin = supabaseAdmin();
-  const { data: target } = await admin.from('profiles').select('username, role').eq('id', id).maybeSingle();
-  if (target?.role === 'admin' && me.role !== 'admin') return { ok: false, error: 'Không thể khoá tài khoản quản trị.' };
+  const target = await loadTarget(me, id);
+  if (!target) return { ok: false, error: 'Không tìm thấy tài khoản.' };
+  if (target.role === 'admin' && me.role !== 'admin') return { ok: false, error: 'Không thể khoá tài khoản quản trị.' };
   const { error } = await admin.auth.admin.updateUserById(id, { ban_duration: locked ? '876000h' : 'none' });
   if (error) return { ok: false, error: 'Chưa cập nhật được.' };
   await admin.from('profiles').update({ is_locked: locked }).eq('id', id);
@@ -197,8 +238,9 @@ export async function deleteAccount(id: string): Promise<Res> {
   const me = await requireTeacher();
   if (!uuid.safeParse(id).success) return { ok: false, error: 'Tài khoản không hợp lệ.' };
   if (id === me.id) return { ok: false, error: 'Bạn không thể tự xoá tài khoản của mình.' };
-  const { data: target } = await supabaseAdmin().from('profiles').select('role').eq('id', id).maybeSingle();
-  if (target?.role === 'admin' && me.role !== 'admin') return { ok: false, error: 'Không thể xoá tài khoản quản trị.' };
+  const target = await loadTarget(me, id);
+  if (!target) return { ok: false, error: 'Không tìm thấy tài khoản.' };
+  if (target.role === 'admin' && me.role !== 'admin') return { ok: false, error: 'Không thể xoá tài khoản quản trị.' };
   const { error } = await supabaseAdmin().auth.admin.deleteUser(id);
   if (error) return { ok: false, error: 'Chưa xoá được tài khoản.' };
   refresh();
