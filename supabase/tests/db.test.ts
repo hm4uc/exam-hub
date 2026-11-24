@@ -282,3 +282,28 @@ describe('schema + RPC', () => {
     await db.exec('reset role');
   });
 });
+
+describe('giới hạn tần suất', () => {
+  it('cho qua đến hạn mức rồi chặn; khoá khác không bị ảnh hưởng', async () => {
+    const hit = async (key: string, limit = 3) => (await one<{ ok: boolean }>(`select public.rate_limit_hit($1, 60, $2) ok`, [key, limit])).ok;
+    expect([await hit('a'), await hit('a'), await hit('a'), await hit('a')]).toEqual([true, true, true, false]);
+    expect(await hit('b')).toBe(true);
+  });
+
+  it('anon và authenticated không gọi được; tham số sai bị từ chối', async () => {
+    for (const role of ['anon', 'authenticated']) {
+      await db.exec(`set role ${role}`);
+      await expect(db.query(`select public.rate_limit_hit('x', 60, 3)`)).rejects.toThrow(/permission denied/);
+      await db.exec('reset role');
+    }
+    await expect(db.query(`select public.rate_limit_hit('x', 0, 3)`)).rejects.toThrow(/BAD_RATE_LIMIT_ARGS/);
+    await expect(db.query(`select public.rate_limit_hit('', 60, 3)`)).rejects.toThrow(/BAD_RATE_LIMIT_ARGS/);
+  });
+
+  it('bảng rate_limits không đọc được từ phía người dùng', async () => {
+    await db.exec('set role authenticated');
+    await as(null);
+    expect((await db.query(`select * from public.rate_limits`)).rows).toHaveLength(0);
+    await db.exec('reset role');
+  });
+});
