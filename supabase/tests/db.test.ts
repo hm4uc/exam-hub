@@ -340,7 +340,7 @@ describe('đa giáo viên: cô lập dữ liệu giữa hai giáo viên', () => 
   it('giáo viên B không thấy, không sửa, không xoá dữ liệu của A', async () => {
     await db.exec('set role authenticated');
     await as(tB);
-    for (const [table, mine] of [['exams', examB], ['classes', classB], ['assignments', asgB], ['questions', examB]] as const) {
+    for (const table of ['exams', 'classes', 'assignments', 'questions'] as const) {
       const rows = (await db.query<{ id: string }>(`select * from public.${table}`)).rows;
       expect(rows, table).toHaveLength(1);
     }
@@ -430,5 +430,31 @@ describe('mã mời giáo viên', () => {
     expect((await db.query(`select * from public.teacher_invites`)).rows).toHaveLength(0);
     await expect(db.query(`select public.use_teacher_invite('abcdefghjk')`)).rejects.toThrow(/permission denied/);
     await db.exec('reset role');
+  });
+});
+
+describe('câu hỏi linh hoạt: Đúng/Sai 2–3 ý, đáp án phân số', () => {
+  it('norm_num hiểu phân số và số thập phân', async () => {
+    const n = async (t: string) => (await one<{ v: string | null }>(`select public.norm_num($1)::text v`, [t])).v;
+    expect(await n('3/4')).toBe('0.75000000000000000000');
+    expect(await n('0,75')).toBe('0.75');
+    expect(await n('.75')).toBe('0.75');
+    expect(await n('1/0')).toBeNull();
+    expect(await n('abc')).toBeNull();
+  });
+
+  it('Đúng/Sai 4 ý giữ thang cũ; 2 hoặc 3 ý chấm theo tỉ lệ', async () => {
+    // dùng một câu thật trong bảng để gọi hàm (hàm nhận hàng của bảng questions)
+    const e = (await one(`select id from public.exams limit 1`)).id;
+    const mk = async (pos: number, answer: string) => (await one(
+      `insert into public.questions (exam_id, position, part, type, stem, stem_html, choices, answer)
+       values ($1, $2, 'X', 'tf', 's', 's', '[]', $3) returning id`, [e, pos, JSON.stringify(answer)])).id;
+    const pts = async (id: string, given: string) => Number((await one<{ p: string }>(
+      `select (public.grade_question(q, '{"tf":1}'::jsonb, to_jsonb($2::text))).pts p from public.questions q where q.id = $1`, [id, given])).p);
+    const q4 = await mk(901, 'ĐSĐS'), q2 = await mk(902, 'ĐS'), q3 = await mk(903, 'ĐSĐ');
+    expect([await pts(q4, 'ĐSĐS'), await pts(q4, 'ĐSĐĐ'), await pts(q4, 'SDSĐ')]).toEqual([1, 0.5, 0]);
+    expect([await pts(q2, 'ĐS'), await pts(q2, 'ĐĐ'), await pts(q2, 'SĐ')]).toEqual([1, 0.5, 0]);
+    expect(Number((await pts(q3, 'ĐSĐ')).toFixed(4))).toBe(1);
+    expect(Number((await pts(q3, 'ĐSS')).toFixed(4))).toBe(0.6667);
   });
 });

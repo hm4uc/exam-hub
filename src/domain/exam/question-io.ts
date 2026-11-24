@@ -14,7 +14,7 @@ export const QuestionInputSchema = z
     part: z.string().max(10).nullable(),
     type: z.enum(['mcq', 'tf', 'short']),
     stem: z.string().max(20000),
-    choices: z.array(z.object({ label: z.string().max(2), text: z.string().max(10000) })).max(4),
+    choices: z.array(z.object({ label: z.string().max(2), text: z.string().max(10000) })).max(6),
     answer: z.union([z.string(), z.array(z.string())]),
     solution: z.string().max(50000).nullable(),
     points: z.number().min(0).max(100).nullable(),
@@ -22,11 +22,11 @@ export const QuestionInputSchema = z
   .superRefine((q, ctx) => {
     const bad = (message: string) => ctx.addIssue({ code: 'custom', message: `Câu ${q.position}: ${message}` });
     if (q.type === 'mcq') {
-      if (q.choices.length !== 4) bad('cần đúng 4 phương án A–D');
+      if (q.choices.length < 2 || q.choices.length > 6) bad('cần từ 2 đến 6 phương án (A–F)');
       if (typeof q.answer !== 'string' || !q.choices.some((c) => c.label === q.answer)) bad('chưa chọn đáp án đúng');
     } else if (q.type === 'tf') {
-      if (q.choices.length !== 4) bad('cần đúng 4 ý a–d');
-      if (typeof q.answer !== 'string' || !normTF(q.answer)) bad('đáp án Đúng/Sai cần đủ 4 ý');
+      if (q.choices.length < 2 || q.choices.length > 4) bad('cần từ 2 đến 4 ý (a–d)');
+      if (typeof q.answer !== 'string' || normTF(q.answer)?.length !== q.choices.length) bad(`đáp án Đúng/Sai cần đủ ${q.choices.length} ý`);
     } else {
       if (!Array.isArray(q.answer) || !q.answer.length || q.answer.some((a) => normNum(a) === null)) bad('đáp án trả lời ngắn phải là số');
     }

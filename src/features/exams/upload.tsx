@@ -20,7 +20,7 @@ interface Item { q: ParsedQuestion; include: boolean; answer: string | string[] 
 const isAnswerError = (e: string) => /đáp án|gạch chân/i.test(e);
 const validAnswer = (q: ParsedQuestion, a: Item['answer']) =>
   q.type === 'mcq' ? typeof a === 'string' && q.options.some((o) => o.label === a)
-  : q.type === 'tf' ? typeof a === 'string' && !!normTF(a)
+  : q.type === 'tf' ? typeof a === 'string' && normTF(a)?.length === q.statements.length
   : Array.isArray(a) && a.length > 0 && a.every((x) => normNum(x) !== null);
 
 export function UploadClient({ ownerId }: { ownerId: string }) {

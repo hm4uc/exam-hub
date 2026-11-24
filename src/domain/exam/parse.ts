@@ -94,15 +94,19 @@ function splitLabels(line: Line, re: RegExp): ParsedChoice[] {
   });
 }
 
-const OPT_RE = /(^|\s)([A-D])[.)]\s+/g;
+const OPT_RE = /(^|\s)([A-F])[.)]\s+/g;
 const STMT_RE = /(^|\s)([a-d])\)\s+/g;
 
+/** Đáp án Đúng/Sai: 2–4 ý (đề THPT 4 ý; tiểu học, THCS có thể 2–3 ý). */
 export function normTF(s: string): string | null {
   const t = s.trim().toUpperCase().replace(/D/g, 'Đ');
-  return /^[ĐS]{4}$/.test(t) ? t : null;
+  return /^[ĐS]{2,4}$/.test(t) ? t : null;
 }
+/** Số thập phân (dấu , hoặc .) hoặc phân số a/b (đề SAT cho phép "3/4"). */
 export function normNum(s: string | null | undefined): number | null {
-  const t = String(s ?? '').trim().replace(',', '.');
+  const t = String(s ?? '').trim().replace(/\s+/g, '').replace(',', '.');
+  const f = t.match(/^(-?\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/);
+  if (f) return Number(f[2]) === 0 ? null : Number(f[1]) / Number(f[2]);
   return /^-?\d*\.?\d+$/.test(t) ? Number(t) : null;
 }
 
@@ -130,24 +134,24 @@ function partHeading(text: string): { id: string | null; hint: Hint | null } | n
 }
 
 /** Tiêu đề phần đáp án / lời giải (không nhầm với câu hỏi bắt đầu bằng "Đáp án nào…"). */
-const ANS_HEAD = /^(?:BẢNG\s+)?ĐÁP ÁN\b(?!\s*:)|^HƯỚNG DẪN\s+(?:GIẢI|CHẤM)|^LỜI GIẢI/iu;
-const SOL_HEAD = /HƯỚNG DẪN\s+(?:GIẢI|CHẤM)|LỜI GIẢI/iu;
+const ANS_HEAD = /^(?:BẢNG\s+)?ĐÁP ÁN\b(?!\s*:)|^HƯỚNG DẪN\s+(?:GIẢI|CHẤM)|^LỜI GIẢI|^ANSWER KEY\b|^ANSWERS?\b(?!\s*:)|^(?:ANSWER )?(?:EXPLANATIONS?|SOLUTIONS?|RATIONALES?)\b/iu;
+const SOL_HEAD = /HƯỚNG DẪN\s+(?:GIẢI|CHẤM)|LỜI GIẢI|EXPLANATIONS?|SOLUTIONS?|RATIONALES?/iu;
 function isAnswerHeading(text: string) {
   if (text.length > 100 || /[?:]$/.test(text) || /^Câu\s*\d/iu.test(text)) return false;
   if (!ANS_HEAD.test(text)) return false;
   return text === text.toUpperCase() || text.split(/\s+/).length <= 7;
 }
 
-const NUM = '-?\\d+(?:[.,]\\d+)?';
-const KEY = `[A-D]|[ĐSDđsd]{4}|${NUM}(?:\\|${NUM})*`;
+const NUM = '-?(?:\\d+(?:[.,]\\d+)?|[.,]\\d+)(?:/\\d+)?';
+const KEY = `[A-F]|[ĐSDđsd]{2,4}|${NUM}(?:\\|${NUM})*`;
 const KEY_ONLY = new RegExp(`^(?:${KEY})$`, 'iu');
-const KEY_PREFIX = new RegExp(`^(?:Đáp án|Đáp số|ĐS|Chọn)\\s*[:：]?\\s*(${KEY})(?=[\\s.,;)]|$)[.]?\\s*`, 'iu');
+const KEY_PREFIX = new RegExp(`^(?:Đáp án|Đáp số|ĐS|Chọn|Correct answer|Answer|Ans)\\s*[:：]?\\s*(${KEY})(?=[\\s.,;)]|$)[.]?\\s*`, 'iu');
 const KEY_LINE = new RegExp(`^(?:\\s*\\d+\\s*[.:)]\\s*(?:${KEY})(?=\\s|$))+\\s*$`, 'iu');
 
 type Kind = QType | 'other';
 function kindOf(v: string): Kind {
-  if (/^[A-D]$/i.test(v)) return 'mcq';
-  if (/^[ĐSDđs]{4}$/iu.test(v)) return 'tf';
+  if (/^[A-F]$/i.test(v)) return 'mcq';
+  if (/^[ĐSDđs]{2,4}$/iu.test(v)) return 'tf';
   if (new RegExp(`^${NUM}(?:\\|${NUM})*$`).test(v)) return 'short';
   return 'other';
 }
@@ -182,7 +186,7 @@ function takeKey(rest: string, paren: string | undefined): { key?: string; rest:
   const km = rest.match(KEY_PREFIX);
   if (km) return { key: km[1], rest: rest.slice(km[0].length).trim() };
   const tf = [...rest.matchAll(/(?:^|[\s.;:,])([a-d])\)\s*(Đúng|Sai)(?![\p{L}])/giu)];
-  if (tf.length === 4 && tf.every((m, i) => m[1].toLowerCase() === 'abcd'[i]))
+  if (tf.length >= 2 && tf.every((m, i) => m[1].toLowerCase() === 'abcd'[i]))
     return { key: tf.map((m) => tfCell(m[2])).join(''), rest: rest.trim() };
   const t = rest.trim();
   if (t.length <= 14 && KEY_ONLY.test(t)) return { key: t, rest: '' };
@@ -193,10 +197,37 @@ const HEADER_LABEL = /^(?:Câu|STT|Số câu)$/iu;
 const VALUE_LABEL = /^(?:Đáp án|ĐA|Chọn|Kết quả|ĐS)$/iu;
 const HEADER_CELL = /^(?:Câu\s*)?(\d+)$/iu;
 
+type Style = 'cau' | 'question' | 'bai' | 'num';
+const STYLE_START: Record<Style, RegExp> = {
+  cau: /^\s*Câu\s*(\d+)\s*[:.]\s*()/iu,
+  question: /^\s*(?:Question|Problem|Q)\s*#?(\d+)\s*[:.)]?(?:\s+|$)()/iu,
+  bai: /^\s*Bài\s*(\d+)\s*[:.)]\s*()/iu,
+  num: /^\s*(\d{1,3})\s*(?:[.)]\s+(?=\S)|$)()/u,
+};
+const STYLE_ENTRY: Record<Style, RegExp> = {
+  cau: /^Câu\s*(\d+)\s*(?:\(([^)]{1,20})\))?\s*[:.]?\s*([\s\S]*)$/iu,
+  question: /^(?:Question|Problem|Q)\s*#?(\d+)\s*(?:\(([^)]{1,20})\))?\s*[:.)]?\s*([\s\S]*)$/iu,
+  bai: /^Bài\s*(\d+)\s*(?:\(([^)]{1,20})\))?\s*[:.)]?\s*([\s\S]*)$/iu,
+  num: /^(\d{1,3})\s*(?:\(([^)]{1,20})\))?\s*[.)]\s*([\s\S]*)$/u,
+};
+function matchStart(style: Style, s: string): { n: number; len: number } | null {
+  const m = s.match(STYLE_START[style]);
+  return m ? { n: +m[1], len: m[0].length } : null;
+}
+/** Đề dùng kiểu đánh số nào: ưu tiên "Câu N"; không có thì "Question N", "Bài N", cuối cùng "1." (đề SAT). */
+function detectStyle(lines: Line[]): Style {
+  const count = (st: Style) => lines.filter((l) => !l.row && matchStart(st, l.text) && !KEY_LINE.test(l.text.trim())).length;
+  if (count('cau') >= 1) return 'cau';
+  if (count('question') >= 2) return 'question';
+  if (count('bai') >= 2) return 'bai';
+  return count('num') >= 2 ? 'num' : 'cau';
+}
+
 interface Sol { part: string | null; n: number; key?: string; text: string; used?: boolean }
 
 export function parseDocumentXml(xml: string): ParseResult {
   const { lines, stats } = readLines(xml);
+  const style = detectStyle(lines);
   type Raw = Omit<ParsedQuestion, 'type' | 'sources' | 'errors' | 'warnings' | 'solution'>;
   const raw: Raw[] = [];
   const tableKeys = new Keys();
@@ -224,11 +255,11 @@ export function parseDocumentXml(xml: string): ParseResult {
 
   const keyRow = (cells: string[]) => {
     const cs = cells.map((c) => c.trim());
-    if (HEADER_LABEL.test(cs[0]) && cs.slice(1).length >= 4 && cs.slice(1, 5).every((c) => /^(?:Ý\s*)?[a-d]\)?\.?$/iu.test(c))) { tfHdr = true; hdr = null; return; }
+    if (HEADER_LABEL.test(cs[0]) && cs.slice(1).length >= 2 && cs.slice(1).every((c) => /^(?:Ý\s*)?[a-d]\)?\.?$/iu.test(c))) { tfHdr = true; hdr = null; return; }
     if (tfHdr) {
       const m = cs[0].match(HEADER_CELL);
-      const vals = cs.slice(1, 5).map(tfCell);
-      if (m && vals.length === 4 && vals.every(Boolean)) { tableKeys.put(ansPart, +m[1], vals.join('')); return; }
+      const vals = cs.slice(1).filter((c) => c !== '').slice(0, 4).map(tfCell);
+      if (m && vals.length >= 2 && vals.every(Boolean)) { tableKeys.put(ansPart, +m[1], vals.join('')); return; }
       tfHdr = false;
     }
     const head = HEADER_LABEL.test(cs[0]) ? cs.slice(1) : cs;
@@ -248,7 +279,11 @@ export function parseDocumentXml(xml: string): ParseResult {
     if (ph) { setPart(ph, true); hdr = null; tfHdr = false; cur = null; return; }
     if (line.row && line.row.length > 1) { keyRow(line.row); return; }
     hdr = null; tfHdr = false;
-    const em = text.match(/^Câu\s*(\d+)\s*(?:\(([^)]{1,20})\))?\s*[:.]?\s*([\s\S]*)$/iu);
+    if (!inSolution && KEY_LINE.test(text)) {
+      for (const m of text.matchAll(/(\d+)\s*[.:)]\s*(\S+)/g)) tableKeys.put(ansPart, +m[1], m[2]);
+      return;
+    }
+    const em = text.match(STYLE_ENTRY[style]);
     if (em) {
       if (ansPart && partHint.get(ansPart) === 'essay') { cur = null; return; }
       const n = +em[1];
@@ -256,10 +291,6 @@ export function parseDocumentXml(xml: string): ParseResult {
       if (!inSolution && tk.key && !tk.rest) { tableKeys.put(ansPart, n, tk.key); cur = null; return; }
       cur = { part: ansPart, n, key: tk.key, text: tk.rest };
       sols.push(cur);
-      return;
-    }
-    if (!inSolution && KEY_LINE.test(text)) {
-      for (const m of text.matchAll(/(\d+)\s*[.:)]\s*(\S+)/g)) tableKeys.put(ansPart, +m[1], m[2]);
       return;
     }
     if (cur) cur.text += (cur.text ? '\n' : '') + text;
@@ -288,14 +319,14 @@ export function parseDocumentXml(xml: string): ParseResult {
       continue;
     }
     if (essay.skip) { if (/^(?:Câu|Bài)\s*\d+/iu.test(text)) essay.count++; continue; }
-    const qm = line.text.match(/^\s*Câu\s*(\d+)\s*[:.]\s*/iu);
+    const qm = matchStart(style, line.text);
     if (qm) {
-      q = { n: +qm[1], part, stem: line.text.slice(qm[0].length).trim(), options: [], statements: [] };
+      q = { n: qm.n, part, stem: line.text.slice(qm.len).trim(), options: [], statements: [] };
       raw.push(q);
       continue;
     }
     if (!q) continue;
-    const opts = /^[A-D][.)]\s/.test(text) ? splitLabels(line, OPT_RE) : [];
+    const opts = /^[A-F][.)]\s/.test(text) ? splitLabels(line, OPT_RE) : [];
     const stmts = !opts.length && /^[a-d]\)\s/.test(text) ? splitLabels(line, STMT_RE) : [];
     if (opts.length) q.options.push(...opts);
     else if (stmts.length) q.statements.push(...stmts);
@@ -337,19 +368,22 @@ export function parseDocumentXml(xml: string): ParseResult {
     const tableKey = tableKeys.get(type, r.part, r.n, unambiguous);
     const src: Record<string, string> = {};
     if (type === 'mcq') {
-      if (r.options.length !== 4) errs.push(`Có ${r.options.length} phương án, cần đúng 4 (A–D)`);
+      if (r.options.length < 2 || r.options.length > 6) errs.push(`Có ${r.options.length} phương án, cần từ 2 đến 6 (A–F)`);
       const mk = r.options.filter((o) => o.marked).map((o) => o.label);
       if (mk.length > 1) errs.push(`Gạch chân/tô đỏ ${mk.length} phương án (${mk.join(', ')})`);
       if (mk.length === 1) src['gạch chân'] = mk[0];
       if (tableKey) src['bảng đáp án'] = tableKey.toUpperCase();
       if (sol?.key) src['lời giải'] = sol.key.toUpperCase();
-      for (const [k, v] of Object.entries(src)) if (!/^[A-D]$/.test(v)) errs.push(`Đáp án "${v}" ở ${k} không phải A–D`);
+      for (const [k, v] of Object.entries(src)) if (!r.options.some((o) => o.label === v)) errs.push(`Đáp án "${v}" ở ${k} không phải một phương án (${r.options.map((o) => o.label).join(', ') || '—'})`);
     } else if (type === 'tf') {
-      if (r.statements.length !== 4) errs.push(`Có ${r.statements.length} ý, cần đúng 4 (a–d)`);
+      if (r.statements.length < 2 || r.statements.length > 4) errs.push(`Có ${r.statements.length} ý, cần từ 2 đến 4 ý (a–d)`);
       if (r.statements.some((s) => s.marked)) src['gạch chân'] = r.statements.map((s) => (s.marked ? 'Đ' : 'S')).join('');
       if (tableKey) src['bảng đáp án'] = normTF(tableKey) ?? `?${tableKey}`;
       if (sol?.key) src['lời giải'] = normTF(sol.key) ?? `?${sol.key}`;
-      for (const [k, v] of Object.entries(src)) if (v.startsWith('?')) errs.push(`Đáp án "${v.slice(1)}" ở ${k} không đúng dạng 4 chữ Đ/S`);
+      for (const [k, v] of Object.entries(src)) {
+        if (v.startsWith('?')) errs.push(`Đáp án "${v.slice(1)}" ở ${k} không đúng dạng chữ Đ/S`);
+        else if (v.length !== r.statements.length) errs.push(`Đáp án ${k} có ${v.length} ý nhưng câu có ${r.statements.length} ý`);
+      }
     } else {
       const acc = (s: string) => s.split('|').map((x) => x.trim()).filter(Boolean).join('|');
       if (tableKey) src['bảng đáp án'] = acc(tableKey);

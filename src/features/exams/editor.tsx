@@ -35,7 +35,7 @@ function QuestionCard({ q, index, scoring, locked }: { q: QRow; index: number; s
 
   const validateAnswer = (ans: string | string[]) => {
     if (q.type === 'mcq') return typeof ans === 'string' && choices.some((c) => c.label === ans) ? undefined : 'Chọn một đáp án đúng.';
-    if (q.type === 'tf') return typeof ans === 'string' && !!normTF(ans) ? undefined : 'Chọn Đúng hoặc Sai cho đủ cả 4 ý.';
+    if (q.type === 'tf') return typeof ans === 'string' && normTF(ans)?.length === choices.length ? undefined : `Chọn Đúng hoặc Sai cho đủ cả ${choices.length} ý.`;
     return validateShortAnswerList(Array.isArray(ans) ? ans : undefined);
   };
 

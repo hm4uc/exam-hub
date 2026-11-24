@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseDocx } from './docx';
-import { parseDocumentXml } from './parse';
+import { normNum, parseDocumentXml } from './parse';
 import { prettifyPlainMath } from './math';
 import { renderRich } from './render';
 
@@ -167,5 +167,78 @@ describe('biến thể trình bày đề', () => {
     ]));
     expect(r.questions[0]).toMatchObject({ type: 'short', answer: ['5'] });
     expect(r.questions[0].solution).toContain('Ta có');
+  });
+});
+
+describe('tiểu học, THCS: số phương án / số ý linh hoạt', () => {
+  it('trắc nghiệm 3 phương án (A, B, C)', () => {
+    const r = parseDocumentXml(xmlOf([
+      'Câu 1: Số nào lớn nhất?', 'A. 5', 'B. 9', 'C. 7',
+      'BẢNG ĐÁP ÁN', '1. B',
+    ]));
+    expect(r.questions[0]).toMatchObject({ type: 'mcq', answer: 'B' });
+    expect(r.questions[0].errors).toEqual([]);
+  });
+
+  it('Đúng/Sai 2 ý: đáp án phải đủ 2 chữ', () => {
+    const r = parseDocumentXml(xmlOf([
+      'Câu 1: Đúng ghi Đ, sai ghi S:', 'a) 2 + 2 = 4', 'b) 3 > 5',
+      'Câu 2: Đúng ghi Đ, sai ghi S:', 'a) 1 < 2', 'b) 2 < 1',
+      'BẢNG ĐÁP ÁN', '1. ĐS 2. ĐSĐ',
+    ]));
+    expect(r.questions[0]).toMatchObject({ type: 'tf', answer: 'ĐS' });
+    expect(r.questions[1].errors.join()).toMatch(/3 ý nhưng câu có 2 ý|không đúng/);
+  });
+
+  it('bảng Đúng/Sai theo ý a–b (2 cột)', () => {
+    const r = parseDocumentXml(xmlOf([
+      'Câu 1: Xét đúng sai:', 'a) 1 < 2', 'b) 2 < 1',
+      'ĐÁP ÁN',
+      { rows: [['Câu', 'Ý a)', 'Ý b)'], ['Câu 1', 'Đúng', 'Sai']] },
+    ]));
+    expect(r.questions[0]).toMatchObject({ type: 'tf', answer: 'ĐS' });
+  });
+
+  it('đề đánh số "Bài 1." (không có "Câu")', () => {
+    const r = parseDocumentXml(xmlOf([
+      'Bài 1. Khoanh vào chữ đặt trước kết quả đúng: 3 + 4 = ?', 'A. 6', 'B. 7', 'C. 8',
+      'Bài 2. Khoanh vào chữ đặt trước kết quả đúng: 5 + 4 = ?', 'A. 9', 'B. 8', 'C. 7',
+      'ĐÁP ÁN', '1. B 2. A',
+    ]));
+    expect(r.questions.map((q) => q.answer)).toEqual(['B', 'A']);
+  });
+});
+
+describe('đề tiếng Anh / SAT', () => {
+  it('đánh số "1." + phương án "A)" + bảng "Answer Key"', () => {
+    const r = parseDocumentXml(xmlOf([
+      '1. If 3x + 4 = 19, what is the value of x?', 'A) 3', 'B) 5', 'C) 7', 'D) 9',
+      '2. What is the value of 2 + 2?', 'A) 3', 'B) 4', 'C) 5', 'D) 6',
+      '3. If 2x = 3, what is x? (student-produced response)',
+      'ANSWER KEY', '1. B 2. B 3. 3/2',
+    ]));
+    expect(r.questions).toHaveLength(3);
+    expect(r.questions.map((q) => q.type)).toEqual(['mcq', 'mcq', 'short']);
+    expect(r.questions.map((q) => q.answer)).toEqual(['B', 'B', ['3/2']]);
+    expect(r.errors).toEqual([]);
+  });
+
+  it('"Question N" và lời giải "Answer: C"', () => {
+    const r = parseDocumentXml(xmlOf([
+      'Question 1: Which is largest?', 'A) 1', 'B) 2', 'C) 3', 'D) 4',
+      'Question 2: Which is smallest?', 'A) 1', 'B) 2', 'C) 3', 'D) 4',
+      'ANSWER EXPLANATIONS', 'Question 1: Answer: D', 'Four is the largest.', 'Question 2: Answer: A', 'One is the smallest.',
+    ]));
+    expect(r.questions.map((q) => q.answer)).toEqual(['D', 'A']);
+    expect(r.questions[0].solution).toContain('largest');
+  });
+
+  it('đáp án phân số và số thập phân bắt đầu bằng dấu chấm', () => {
+    expect(normNum('3/4')).toBe(0.75);
+    expect(normNum('-1/2')).toBe(-0.5);
+    expect(normNum('.75')).toBe(0.75);
+    expect(normNum('1/0')).toBeNull();
+    expect(normNum('abc')).toBeNull();
+    expect(normNum('0,5')).toBe(0.5);
   });
 });
